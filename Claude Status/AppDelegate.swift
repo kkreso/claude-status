@@ -259,7 +259,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func setupPopover() {
         popover.behavior = .transient
-        popover.appearance = NSAppearance(named: .darkAqua)
+        popover.appearance = nil
         let hostingController = NSHostingController(
             rootView: PopoverContentView(
                 monitor: monitor,

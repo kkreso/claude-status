@@ -152,13 +152,14 @@ struct LargeWidgetView: View {
 // MARK: - Session Row
 
 /// A single session row matching the system widget style — icon, text, value aligned.
+/// In vibrant (desktop) mode, uses colored dots instead of emoji since emoji get desaturated.
 struct SessionRowWidget: View {
+    @Environment(\.widgetRenderingMode) var renderingMode
     let session: ClaudeSession
 
     var body: some View {
         HStack(spacing: 10) {
-            Text(session.state.emoji)
-                .font(.system(size: 14))
+            statusIndicator
                 .frame(width: 22, alignment: .center)
 
             VStack(alignment: .leading, spacing: 1) {
@@ -194,5 +195,26 @@ struct SessionRowWidget: View {
             }
         }
         .padding(.vertical, 10)
+    }
+
+    @ViewBuilder
+    private var statusIndicator: some View {
+        if renderingMode == .vibrant {
+            Circle()
+                .fill(dotColor)
+                .frame(width: 8, height: 8)
+        } else {
+            Text(session.state.emoji)
+                .font(.system(size: 14))
+        }
+    }
+
+    private var dotColor: Color {
+        switch session.state {
+        case .active: .green
+        case .waiting: .orange
+        case .compacting: .blue
+        case .idle: .gray
+        }
     }
 }
