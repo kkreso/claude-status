@@ -11,7 +11,7 @@ A native macOS menu bar utility that monitors all active [Claude Code](https://d
 - **Real-time session monitoring** — Discovers sessions via `.cstatus` files written by a Claude Code plugin hook, with instant Darwin notification updates
 - **Menu bar status indicator** — Shows aggregate session state as a colored dot or emoji overlay on the menu bar icon
 - **Four session states** — Active (working), Waiting (needs input), Compacting (context compaction), and Idle
-- **Multi-app focus** — Click any session to focus its host app: iTerm2, Terminal, Warp, Alacritty, Kitty, WezTerm, Ghostty, Xcode, VS Code, JetBrains IDEs, or Zed
+- **Multi-app focus** — Click any session in the dropdown or widget to focus its host app (see [Session Focusing](#session-focusing) for details)
 - **Two icon styles** — Toggle between emoji indicators (⚡ ⏳ 🧹 💤) and colored status dots
 - **Desktop widget** — WidgetKit widget showing session count and status at a glance
 - **Settings window** — Icon style, launch at login, plugin install/uninstall
@@ -56,6 +56,22 @@ Three complementary mechanisms keep the UI current:
 2. **File system watching** — `DispatchSource` on `~/.claude/projects/` triggers refresh on file changes
 3. **Polling timer** — 5s fallback for sessions without hooks
 
+### Session Focusing
+
+Clicking a session in the menu bar dropdown or the desktop widget navigates directly to the session's host app. The behavior varies by app type:
+
+| Host App | Focus Behavior |
+| --- | --- |
+| **iTerm2** | Activates the specific tab and window containing the session via AppleScript |
+| **Terminal, Warp, Alacritty, Kitty, WezTerm, Ghostty** | Activates the terminal app |
+| **tmux sessions** | Selects the correct tmux window and pane (unzooming if needed), then activates the hosting terminal. Works with any terminal that runs tmux, and resolves the real terminal app even inside tmux (via `LC_TERMINAL`, `ITERM_SESSION_ID`, `GHOSTTY_RESOURCES_DIR`, etc.) |
+| **VS Code** | Activates VS Code (detected via bundled Claude Code extension path or `VSCODE_*` env vars, including inside tmux) |
+| **Zed** | Activates Zed (detected via process tree, `TERM_PROGRAM`, or inside tmux) |
+| **Xcode** | Activates Xcode (detected via the Coding Assistant executable path) |
+| **JetBrains IDEs** | Activates the specific IDE — IntelliJ IDEA, PyCharm, WebStorm, GoLand, CLion, RubyMine, Rider, PhpStorm, DataGrip, or DataSpell (detected via `TERMINAL_EMULATOR` and `__CFBundleIdentifier` env vars) |
+
+The desktop widget uses `claude-status://session/<id>` deep links, which open the main app and trigger the same focus logic.
+
 ## Installation
 
 ### Build from Source
@@ -82,7 +98,7 @@ On first launch, the app will prompt to install the Claude Code plugin. You can 
 
 - **Left-click** the menu bar icon to open the session popover
 - **Right-click** for a quick context menu (Refresh, Quit)
-- **Click a session** to focus it in its host app (terminal or IDE)
+- **Click a session** to [focus it](#session-focusing) in its host app (terminal, IDE, or tmux pane)
 - **Hover a session** to see its full working directory path
 
 ## Architecture
