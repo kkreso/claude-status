@@ -15,7 +15,7 @@
 #   idle       — Session just started or has no pending work
 #   compacting — Session is compacting context
 
-set -euo pipefail
+set -eo pipefail
 
 # Read JSON input from stdin
 INPUT=$(cat)
@@ -26,11 +26,15 @@ json_escape() {
     printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's/	/\\t/g'
 }
 
-# Extract a string value from JSON using only sed (no jq dependency)
+# Extract a string value from JSON using only sed (no jq dependency).
+# Returns empty string (not failure) when key is absent.
 extract_json_string() {
     local key="$1"
     local json="$2"
-    echo "$json" | sed -n "s/.*\"${key}\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" | head -1
+    local result
+    result=$(echo "$json" | sed -n "s/.*\"${key}\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p") || true
+    echo "${result%%
+*}"
 }
 
 EVENT=$(extract_json_string "hook_event_name" "$INPUT")
@@ -38,11 +42,11 @@ SESSION_ID=$(extract_json_string "session_id" "$INPUT")
 TRANSCRIPT=$(extract_json_string "transcript_path" "$INPUT")
 CWD=$(extract_json_string "cwd" "$INPUT")
 
-# PPID is the Claude process that spawned this hook
-CLAUDE_PID=$PPID
+# CLAUDE_PID can be overridden for testing; defaults to PPID (the Claude process)
+CLAUDE_PID="${CLAUDE_PID:-$PPID}"
 
 # Get the parent of the Claude process (the shell/IDE that launched it)
-CLAUDE_PPID=$(ps -o ppid= -p "$CLAUDE_PID" 2>/dev/null | tr -d ' ')
+CLAUDE_PPID=$(ps -o ppid= -p "$CLAUDE_PID" 2>/dev/null | tr -d ' ') || true
 CLAUDE_PPID=${CLAUDE_PPID:-0}
 
 # Derive the project directory from the transcript path
@@ -137,11 +141,12 @@ case "$EVENT" in
         ;;
 esac
 
-# Sticky compacting: if the previous state was "compacting", keep it unless
-# this is a definitive end event that means compaction is done.
-if [[ "$PREV_STATE" == "compacting" && "$STATUS" == "active" ]]; then
+# Sticky compacting: tool-use events during compaction should not override
+# the "compacting" state. Only definitive end events clear it:
+# UserPromptSubmit, SessionStart, Stop, SessionEnd, PermissionRequest.
+STICKY_EVENTS="PreToolUse PostToolUse PostToolUseFailure SubagentStart SubagentStop"
+if [[ "$PREV_STATE" == "compacting" && " $STICKY_EVENTS " == *" $EVENT "* ]]; then
     STATUS="compacting"
-    # Preserve tool activity info so the UI can show what's happening
     ACTIVITY="${ACTIVITY:+compacting ($ACTIVITY)}"
     [[ -z "$ACTIVITY" ]] && ACTIVITY="compacting"
 fi
