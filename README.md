@@ -6,6 +6,8 @@ A native macOS menu bar utility that monitors all active [Claude Code](https://d
 ![Swift](https://img.shields.io/badge/Swift-5.0-orange)
 ![License](https://img.shields.io/badge/License-BSD_3--Clause-green)
 
+![Claude Status screenshot showing the menu bar dropdown and desktop widget](assets/screenshot.png)
+
 ## Features
 
 - **Real-time session monitoring** — Discovers sessions via `.cstatus` files written by a Claude Code plugin hook, with instant Darwin notification updates
