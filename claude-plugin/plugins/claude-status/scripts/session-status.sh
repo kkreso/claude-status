@@ -15,7 +15,7 @@
 #   idle       — Session just started or has no pending work
 #   compacting — Session is compacting context
 
-set -euo pipefail
+set -eo pipefail
 
 # Read JSON input from stdin
 INPUT=$(cat)
@@ -26,11 +26,15 @@ json_escape() {
     printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's/	/\\t/g'
 }
 
-# Extract a string value from JSON using only sed (no jq dependency)
+# Extract a string value from JSON using only sed (no jq dependency).
+# Returns empty string (not failure) when key is absent.
 extract_json_string() {
     local key="$1"
     local json="$2"
-    echo "$json" | sed -n "s/.*\"${key}\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" | head -1
+    local result
+    result=$(echo "$json" | sed -n "s/.*\"${key}\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p") || true
+    echo "${result%%
+*}"
 }
 
 EVENT=$(extract_json_string "hook_event_name" "$INPUT")
@@ -38,11 +42,11 @@ SESSION_ID=$(extract_json_string "session_id" "$INPUT")
 TRANSCRIPT=$(extract_json_string "transcript_path" "$INPUT")
 CWD=$(extract_json_string "cwd" "$INPUT")
 
-# PPID is the Claude process that spawned this hook
-CLAUDE_PID=$PPID
+# CLAUDE_PID can be overridden for testing; defaults to PPID (the Claude process)
+CLAUDE_PID="${CLAUDE_PID:-$PPID}"
 
 # Get the parent of the Claude process (the shell/IDE that launched it)
-CLAUDE_PPID=$(ps -o ppid= -p "$CLAUDE_PID" 2>/dev/null | tr -d ' ')
+CLAUDE_PPID=$(ps -o ppid= -p "$CLAUDE_PID" 2>/dev/null | tr -d ' ') || true
 CLAUDE_PPID=${CLAUDE_PPID:-0}
 
 # Derive the project directory from the transcript path
@@ -64,6 +68,15 @@ fi
 
 # Extract tool_name for tool-related events
 TOOL_NAME=$(extract_json_string "tool_name" "$INPUT")
+
+# Read the previous state from the existing .cstatus file (if any).
+# During compaction, tool-use hooks fire but should not override the
+# "compacting" state — only definitive end events (Stop, UserPromptSubmit,
+# SessionStart, SessionEnd) clear it.
+PREV_STATE=""
+if [[ -f "$STATUS_FILE" ]]; then
+    PREV_STATE=$(extract_json_string "state" "$(cat "$STATUS_FILE")")
+fi
 
 # Map hook event to session state and activity
 ACTIVITY=""
@@ -128,6 +141,16 @@ case "$EVENT" in
         ;;
 esac
 
+# Sticky compacting: tool-use events during compaction should not override
+# the "compacting" state. Only definitive end events clear it:
+# UserPromptSubmit, SessionStart, Stop, SessionEnd, PermissionRequest.
+STICKY_EVENTS="PreToolUse PostToolUse PostToolUseFailure SubagentStart SubagentStop"
+if [[ "$PREV_STATE" == "compacting" && " $STICKY_EVENTS " == *" $EVENT "* ]]; then
+    STATUS="compacting"
+    ACTIVITY="${ACTIVITY:+compacting ($ACTIVITY)}"
+    [[ -z "$ACTIVITY" ]] && ACTIVITY="compacting"
+fi
+
 TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
 # Escape values that may contain special characters for JSON safety
@@ -141,7 +164,7 @@ TMP_FILE="${STATUS_FILE}.tmp.$$"
 trap 'rm -f "$TMP_FILE"' EXIT
 
 cat > "$TMP_FILE" << EOF
-{"session_id":"${SAFE_SESSION_ID}","pid":${CLAUDE_PID},"ppid":${CLAUDE_PPID},"state":"${STATUS}","activity":"${SAFE_ACTIVITY}","timestamp":"${TIMESTAMP}","cwd":"${SAFE_CWD}","event":"${SAFE_EVENT}"}
+{"session_id":"${SAFE_SESSION_ID}","pid":${CLAUDE_PID:-0},"ppid":${CLAUDE_PPID:-0},"state":"${STATUS}","activity":"${SAFE_ACTIVITY}","timestamp":"${TIMESTAMP}","cwd":"${SAFE_CWD}","event":"${SAFE_EVENT}"}
 EOF
 
 mv -f "$TMP_FILE" "$STATUS_FILE"

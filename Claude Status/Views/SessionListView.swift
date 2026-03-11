@@ -3,6 +3,7 @@ import SwiftUI
 /// The popover content showing all active Claude Code sessions.
 struct SessionListView: View {
     let sessions: [ClaudeSession]
+    let productivityData: ProductivityData
     var onSessionTap: ((ClaudeSession) -> Void)?
     var onRefresh: (() -> Void)?
     var onSettings: (() -> Void)?
@@ -35,6 +36,12 @@ struct SessionListView: View {
                 emptyState
             } else {
                 sessionList
+            }
+
+            if productivityData.today.totalSessionTime > 0 {
+                Divider()
+                    .padding(.vertical, 4)
+                productivitySection
             }
 
             Divider()
@@ -111,6 +118,26 @@ struct SessionListView: View {
         }
         .frame(maxHeight: maxSessionListHeight)
         .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var productivitySection: some View {
+        let stats = productivityData.today
+        return VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text("Claude Usage (Today)")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text("\(stats.totalTimeFormatted) · Score \(stats.score)")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
+            }
+
+            // Stacked horizontal bar — hover shows floating legend tooltip
+            ProductivityBarView(stats: stats)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 4)
     }
 
     private var menuSection: some View {

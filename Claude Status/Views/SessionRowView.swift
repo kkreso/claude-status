@@ -21,9 +21,9 @@ struct SessionRowView: View {
     @State private var isHovered = false
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 6) {
             statusIndicator
-                .frame(width: 24, alignment: .center)
+                .frame(width: 16, alignment: .leading)
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(session.projectName)
@@ -47,14 +47,14 @@ struct SessionRowView: View {
 
             Spacer()
 
-            Text(session.state.label)
-                .font(.system(size: 11))
-                .foregroundStyle(.primary)
-
-            Text(session.timeSinceActivity)
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
-                .frame(width: 52, alignment: .trailing)
+            VStack(alignment: .trailing, spacing: 1) {
+                Text(session.state.label)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.primary)
+                Text(session.timeSinceActivity)
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
+            }
         }
         .padding(.vertical, 5)
         .padding(.horizontal, 14)

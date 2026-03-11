@@ -11,6 +11,7 @@ import WidgetKit
 final class SessionMonitor {
 
     private(set) var sessions: [ClaudeSession] = []
+    private(set) var productivityData: ProductivityData = ProductivityData(today: .empty(), allTime: .empty())
 
     /// Whether the Claude Code session-status plugin is installed.
     /// Based on `PluginDetector` checking installed_plugins.json and settings.json hooks.
@@ -25,6 +26,7 @@ final class SessionMonitor {
     private var discovery = SessionDiscovery()
     private let stateResolver = StateResolver()
     private let pluginDetector = PluginDetector()
+    private let tracker = ProductivityTracker()
     private var timer: Timer?
     private let scanInterval: TimeInterval
 
@@ -35,6 +37,10 @@ final class SessionMonitor {
     private var lastPluginCheck: Date = .distantPast
     private var cachedPluginState: PluginInstallState = .unknown
     private static let pluginCheckInterval: TimeInterval = 30
+
+    /// Throttle widget reloads to avoid excessive writes on every 5s poll.
+    private var lastWidgetUpdate: Date = .distantPast
+    private static let widgetUpdateInterval: TimeInterval = 30
 
     /// Darwin notification name posted by the hook script.
     private static let darwinNotificationName = "com.poisonpenllc.Claude-Status.session-changed" as CFString
@@ -118,14 +124,26 @@ final class SessionMonitor {
     /// Applies a discovery result: updates sessions, cache, and hook detection.
     /// Only writes to the shared container and reloads the widget when data changes.
     private func applyResult(_ result: SessionDiscovery.DiscoveryResult) {
-        let changed = sessions != result.sessions
+        let sessionsChanged = sessions != result.sessions
         sessions = result.sessions
         cstatusCache = result.cstatusFiles
 
+        // Track time-in-state for productivity scoring
+        tracker.recordSnapshot(sessions: result.sessions)
+        let newProductivity = tracker.currentData
+        let productivityChanged = productivityData != newProductivity
+        productivityData = newProductivity
+
         updatePluginState()
 
-        if changed {
-            writeSessionsToSharedContainer()
+        // Session changes write immediately; productivity changes are throttled
+        if sessionsChanged {
+            writeToSharedContainer()
+        } else if productivityChanged {
+            let now = Date()
+            if now.timeIntervalSince(lastWidgetUpdate) >= Self.widgetUpdateInterval {
+                writeToSharedContainer()
+            }
         }
     }
 
@@ -151,21 +169,27 @@ final class SessionMonitor {
 
     // MARK: - Shared Data
 
-    private func writeSessionsToSharedContainer() {
+    private func writeToSharedContainer() {
         guard let sharedURL = FileManager.default.containerURL(
             forSecurityApplicationGroupIdentifier: "group.com.poisonpenllc.Claude-Status"
         ) else {
             return
         }
 
-        let dataURL = sharedURL.appendingPathComponent("sessions.json")
-
-        guard let encoded = try? JSONEncoder().encode(sessions) else {
-            return
+        if let encoded = try? JSONEncoder().encode(sessions) {
+            let dataURL = sharedURL.appendingPathComponent("sessions.json")
+            try? encoded.write(to: dataURL, options: .atomic)
         }
 
-        try? encoded.write(to: dataURL, options: .atomic)
+        if let encoded = try? JSONEncoder().encode(productivityData) {
+            let prodURL = sharedURL.appendingPathComponent("productivity.json")
+            try? encoded.write(to: prodURL, options: .atomic)
+        }
+
+        lastWidgetUpdate = Date()
 
         WidgetCenter.shared.reloadTimelines(ofKind: "Claude_StatusWidget")
+        WidgetCenter.shared.reloadTimelines(ofKind: "Claude_ProductivityWidget")
+        WidgetCenter.shared.reloadTimelines(ofKind: "Claude_ScoreWidget")
     }
 }

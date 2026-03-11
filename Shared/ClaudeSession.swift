@@ -7,6 +7,16 @@ enum SessionState: Comparable, Codable {
     case idle
     case compacting
 
+    /// String key used in ProductivityStats.timeInState dictionaries.
+    var key: String {
+        switch self {
+        case .active: "active"
+        case .waiting: "waiting"
+        case .idle: "idle"
+        case .compacting: "compacting"
+        }
+    }
+
     var sfSymbol: String {
         switch self {
         case .active: "circle.fill"
@@ -54,6 +64,7 @@ enum SessionState: Comparable, Codable {
     }
 
     /// Sort order for display (lower = appears first).
+    /// Waiting (needs input) > Active (working) > Compacting > Idle.
     var sortOrder: Int {
         switch self {
         case .waiting: 0
@@ -66,10 +77,10 @@ enum SessionState: Comparable, Codable {
 
 /// Where a Claude session is running.
 enum SessionSource: Codable, Equatable {
-    case terminal(app: String)
+    case terminal(app: String)  // e.g. "iTerm2", "Terminal", "Ghostty"
     case xcode
     case vscode
-    case jetbrains(ide: String)
+    case jetbrains(ide: String)  // e.g. "PyCharm", "IntelliJ IDEA"
     case zed
 
     var label: String {
@@ -81,10 +92,23 @@ enum SessionSource: Codable, Equatable {
         case .zed: "Zed"
         }
     }
+
+    /// Whether this is a terminal session (not an IDE-embedded agent).
+    var isTerminal: Bool {
+        if case .terminal = self { return true }
+        return false
+    }
+
+    /// Whether this is any JetBrains IDE.
+    var isJetBrains: Bool {
+        if case .jetbrains = self { return true }
+        return false
+    }
 }
 
 /// A discovered Claude Code session on the local machine.
-struct ClaudeSession: Identifiable, Codable {
+struct ClaudeSession: Identifiable, Codable, Equatable {
+    /// The session UUID from Claude Code (stable across refreshes).
     let sessionId: String
     let pid: pid_t
     let workingDirectory: String
@@ -92,11 +116,16 @@ struct ClaudeSession: Identifiable, Codable {
     let state: SessionState
     let lastActivityAt: Date
     let iTermSessionId: String?
+    /// tmux pane ID (e.g. "%5") when session runs inside tmux.
     let tmuxPaneId: String?
+    /// tmux socket path for targeting the correct server.
     let tmuxSocket: String?
     let source: SessionSource
+    /// Current activity description (e.g. tool name, "thinking", "subagent").
+    /// Empty string when no specific activity is known.
     let activity: String
 
+    /// Use sessionId as the SwiftUI identity (stable, unlike PIDs).
     var id: String { sessionId }
 
     /// Relative time since last activity, human-readable.
