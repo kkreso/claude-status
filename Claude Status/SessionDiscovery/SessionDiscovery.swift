@@ -176,10 +176,21 @@ struct SessionDiscovery {
         let projectName = (record.cwd as NSString).lastPathComponent
 
         let iTermSessionId: String?
+        let tmuxPaneId: String?
+        let tmuxSocket: String?
         if source.isTerminal {
             iTermSessionId = readEnvironmentVariable(for: record.pid, name: "ITERM_SESSION_ID")
+            tmuxPaneId = readEnvironmentVariable(for: record.pid, name: "TMUX_PANE")
+            if let tmuxEnv = readEnvironmentVariable(for: record.pid, name: "TMUX") {
+                // TMUX env var format: /socket/path,pid,session
+                tmuxSocket = tmuxEnv.split(separator: ",").first.map(String.init)
+            } else {
+                tmuxSocket = nil
+            }
         } else {
             iTermSessionId = nil
+            tmuxPaneId = nil
+            tmuxSocket = nil
         }
 
         return ClaudeSession(
@@ -190,6 +201,8 @@ struct SessionDiscovery {
             state: record.state,
             lastActivityAt: record.timestamp,
             iTermSessionId: iTermSessionId,
+            tmuxPaneId: tmuxPaneId,
+            tmuxSocket: tmuxSocket,
             source: source,
             activity: record.activity
         )
@@ -227,6 +240,17 @@ struct SessionDiscovery {
         if let termProgram = readEnvironmentVariable(for: pid, name: "TERM_PROGRAM"),
            termProgram == "Zed" {
             return .zed
+        }
+
+        // If inside tmux, the tmux server is reparented to pid 1 so the
+        // process tree walk won't reach the terminal. Check for IDE env
+        // vars first, then identify the real terminal app.
+        if readEnvironmentVariable(for: pid, name: "TMUX") != nil {
+            // VS Code sets VSCODE_* env vars that survive into tmux
+            if readEnvironmentVariable(for: pid, name: "VSCODE_GIT_IPC_HANDLE") != nil {
+                return .vscode
+            }
+            return .terminal(app: resolveTerminalFromTmux(pid: pid))
         }
 
         // Walk the ancestor chain starting from ppid
@@ -289,6 +313,50 @@ struct SessionDiscovery {
         }
 
         return .terminal(app: "Terminal")
+    }
+
+    /// Identifies the real terminal app when running inside tmux.
+    /// TERM_PROGRAM is "tmux" inside tmux, so we check terminal-specific
+    /// env vars that survive into tmux sessions (LC_TERMINAL, ITERM_SESSION_ID,
+    /// GHOSTTY_RESOURCES_DIR, KITTY_PID, etc.).
+    private func resolveTerminalFromTmux(pid: pid_t) -> String {
+        // LC_TERMINAL is set by iTerm2 and survives into tmux
+        if let lcTerminal = readEnvironmentVariable(for: pid, name: "LC_TERMINAL") {
+            if lcTerminal.contains("iTerm") { return "iTerm2" }
+            return lcTerminal
+        }
+        // iTerm2 session ID (also survives tmux)
+        if readEnvironmentVariable(for: pid, name: "ITERM_SESSION_ID") != nil {
+            return "iTerm2"
+        }
+        // Ghostty
+        if readEnvironmentVariable(for: pid, name: "GHOSTTY_RESOURCES_DIR") != nil {
+            return "Ghostty"
+        }
+        // Kitty
+        if readEnvironmentVariable(for: pid, name: "KITTY_PID") != nil {
+            return "Kitty"
+        }
+        // WezTerm
+        if readEnvironmentVariable(for: pid, name: "WEZTERM_PANE") != nil {
+            return "WezTerm"
+        }
+        // Alacritty sets ALACRITTY_LOG or ALACRITTY_SOCKET
+        if readEnvironmentVariable(for: pid, name: "ALACRITTY_SOCKET") != nil {
+            return "Alacritty"
+        }
+        // Fall back to TERM_PROGRAM if it's not "tmux"
+        if let termProgram = readEnvironmentVariable(for: pid, name: "TERM_PROGRAM"),
+           termProgram != "tmux" {
+            switch termProgram {
+            case "iTerm.app": return "iTerm2"
+            case "Apple_Terminal": return "Terminal"
+            case "WarpTerminal": return "Warp"
+            case "ghostty": return "Ghostty"
+            default: return termProgram.isEmpty ? "Terminal" : termProgram
+            }
+        }
+        return "Terminal"
     }
 
     /// Resolves the human-readable JetBrains IDE name from __CFBundleIdentifier.

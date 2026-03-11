@@ -106,6 +106,10 @@ struct ClaudeSession: Identifiable, Codable {
     let state: SessionState
     let lastActivityAt: Date
     let iTermSessionId: String?
+    /// tmux pane ID (e.g. "%5") when session runs inside tmux.
+    let tmuxPaneId: String?
+    /// tmux socket path for targeting the correct server.
+    let tmuxSocket: String?
     let source: SessionSource
     /// Current activity description (e.g. tool name, "thinking", "subagent").
     /// Empty string when no specific activity is known.
