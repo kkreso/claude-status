@@ -10,6 +10,7 @@ struct Claude_StatusWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: Claude_StatusTimelineProvider()) { entry in
             Claude_StatusWidgetEntryView(entry: entry)
+                .padding(.trailing, 4)
                 .containerBackground(.fill.tertiary, for: .widget)
         }
         .configurationDisplayName("Claude Sessions")

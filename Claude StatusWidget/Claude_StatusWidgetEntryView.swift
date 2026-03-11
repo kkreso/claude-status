@@ -1,17 +1,6 @@
 import SwiftUI
 import WidgetKit
 
-/// Icon display style for session rows, read from shared App Group defaults.
-enum WidgetIconStyle: String {
-    case emoji
-    case dots
-
-    static var current: WidgetIconStyle {
-        let raw = UserDefaults(suiteName: "group.com.poisonpenllc.Claude-Status")?
-            .string(forKey: "iconStyle") ?? "emoji"
-        return WidgetIconStyle(rawValue: raw) ?? .emoji
-    }
-}
 
 /// The SwiftUI view for the Claude Status widget entry.
 struct Claude_StatusWidgetEntryView: View {
@@ -32,7 +21,6 @@ struct Claude_StatusWidgetEntryView: View {
 
 struct MediumWidgetView: View {
     let entry: SessionEntry
-    private var iconStyle: WidgetIconStyle { .current }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -41,7 +29,9 @@ struct MediumWidgetView: View {
             } else {
                 sessionList(maxRows: 4)
             }
+            Spacer(minLength: 0)
         }
+        .padding(.vertical, 4)
     }
 
     @ViewBuilder
@@ -70,7 +60,7 @@ struct MediumWidgetView: View {
                     .padding(.leading, 32)
             }
             Link(destination: deepLinkURL(for: session)) {
-                SessionRowWidget(session: session, iconStyle: iconStyle)
+                SessionRowWidget(session: session)
             }
             .buttonStyle(.plain)
         }
@@ -89,7 +79,12 @@ struct MediumWidgetView: View {
     }
 
     private var sortedSessions: [ClaudeSession] {
-        entry.sessions.sorted { $0.state.sortOrder < $1.state.sortOrder }
+        entry.sessions.sorted {
+            if $0.state.sortOrder != $1.state.sortOrder {
+                return $0.state.sortOrder < $1.state.sortOrder
+            }
+            return $0.lastActivityAt < $1.lastActivityAt
+        }
     }
 
     private func deepLinkURL(for session: ClaudeSession) -> URL {
@@ -101,7 +96,6 @@ struct MediumWidgetView: View {
 
 struct LargeWidgetView: View {
     let entry: SessionEntry
-    private var iconStyle: WidgetIconStyle { .current }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -110,7 +104,9 @@ struct LargeWidgetView: View {
             } else {
                 sessionList(maxRows: 8)
             }
+            Spacer(minLength: 0)
         }
+        .padding(.vertical, 4)
     }
 
     @ViewBuilder
@@ -139,7 +135,7 @@ struct LargeWidgetView: View {
                     .padding(.leading, 32)
             }
             Link(destination: deepLinkURL(for: session)) {
-                SessionRowWidget(session: session, iconStyle: iconStyle)
+                SessionRowWidget(session: session)
             }
             .buttonStyle(.plain)
         }
@@ -158,7 +154,12 @@ struct LargeWidgetView: View {
     }
 
     private var sortedSessions: [ClaudeSession] {
-        entry.sessions.sorted { $0.state.sortOrder < $1.state.sortOrder }
+        entry.sessions.sorted {
+            if $0.state.sortOrder != $1.state.sortOrder {
+                return $0.state.sortOrder < $1.state.sortOrder
+            }
+            return $0.lastActivityAt < $1.lastActivityAt
+        }
     }
 
     private func deepLinkURL(for session: ClaudeSession) -> URL {
@@ -171,23 +172,13 @@ struct LargeWidgetView: View {
 /// A single session row matching the system widget style — icon, text, value aligned.
 struct SessionRowWidget: View {
     let session: ClaudeSession
-    var iconStyle: WidgetIconStyle = .emoji
 
     var body: some View {
         HStack(spacing: 10) {
-            // Status indicator
-            if iconStyle == .dots {
-                Circle()
-                    .fill(dotColor)
-                    .frame(width: 8, height: 8)
-                    .frame(width: 22, alignment: .center)
-            } else {
-                Text(session.state.emoji)
-                    .font(.system(size: 14))
-                    .frame(width: 22, alignment: .center)
-            }
+            Text(session.state.emoji)
+                .font(.system(size: 14))
+                .frame(width: 22, alignment: .center)
 
-            // Project name and source
             VStack(alignment: .leading, spacing: 1) {
                 Text(session.projectName)
                     .font(.system(size: 13, weight: .medium))
@@ -211,7 +202,6 @@ struct SessionRowWidget: View {
 
             Spacer()
 
-            // Status + time, right-aligned
             VStack(alignment: .trailing, spacing: 1) {
                 Text(session.state.label)
                     .font(.system(size: 11))
@@ -221,15 +211,6 @@ struct SessionRowWidget: View {
                     .foregroundStyle(.tertiary)
             }
         }
-        .padding(.vertical, 6)
-    }
-
-    private var dotColor: Color {
-        switch session.state {
-        case .active: .green
-        case .waiting: .orange
-        case .compacting: .blue
-        case .idle: .gray
-        }
+        .padding(.vertical, 10)
     }
 }
