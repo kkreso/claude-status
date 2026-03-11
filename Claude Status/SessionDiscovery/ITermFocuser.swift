@@ -9,7 +9,7 @@ struct SessionFocuser {
     func focus(session: ClaudeSession) {
         switch session.source {
         case .terminal(let app):
-            focusTerminal(app: app, sessionId: session.iTermSessionId, workingDirectory: session.workingDirectory)
+            focusTerminal(app: app, sessionId: session.iTermSessionId, tmuxPaneId: session.tmuxPaneId, tmuxSocket: session.tmuxSocket, workingDirectory: session.workingDirectory)
         case .xcode:
             activateApp(bundleId: "com.apple.dt.Xcode")
         case .vscode:
@@ -58,7 +58,14 @@ struct SessionFocuser {
         "Ghostty": "com.mitchellh.ghostty",
     ]
 
-    private func focusTerminal(app: String, sessionId: String?, workingDirectory: String) {
+    private func focusTerminal(app: String, sessionId: String?, tmuxPaneId: String?, tmuxSocket: String?, workingDirectory: String) {
+        // tmux sessions: select the pane/window then activate the terminal
+        if let paneId = tmuxPaneId {
+            focusTmuxPane(paneId: paneId, socket: tmuxSocket)
+            activateTerminalApp(name: app)
+            return
+        }
+
         // iTerm2 supports focusing a specific session via AppleScript
         if app == "iTerm2" {
             if let sessionId {
@@ -70,15 +77,66 @@ struct SessionFocuser {
         }
 
         // For other terminals, just activate the app
-        if let bundleId = Self.terminalBundleIds[app] {
+        activateTerminalApp(name: app)
+    }
+
+    /// Activates a terminal app by bundle ID, falling back to name matching.
+    private func activateTerminalApp(name: String) {
+        if let bundleId = Self.terminalBundleIds[name] {
             activateApp(bundleId: bundleId)
         } else {
-            // Fallback: try to find a running app whose name contains the terminal name
             let match = NSWorkspace.shared.runningApplications.first { runningApp in
-                runningApp.localizedName?.contains(app) == true
+                runningApp.localizedName?.contains(name) == true
             }
             match?.activate()
         }
+    }
+
+    /// Selects the target tmux pane and its window so it's visible when
+    /// the terminal app comes to front. Unzooms first if another pane is zoomed.
+    private func focusTmuxPane(paneId: String, socket: String?) {
+        var baseArgs = [String]()
+        if let socket {
+            baseArgs += ["-S", socket]
+        }
+        let tmux = "/usr/bin/env"
+
+        // Select the window containing the target pane
+        let selectWindow = Process()
+        selectWindow.executableURL = URL(fileURLWithPath: tmux)
+        selectWindow.arguments = ["tmux"] + baseArgs + ["select-window", "-t", paneId]
+        try? selectWindow.run()
+        selectWindow.waitUntilExit()
+
+        // Unzoom the current window if zoomed (resize-pane -Z toggles zoom;
+        // check window_zoomed_flag first to avoid accidentally zooming in)
+        let checkZoom = Process()
+        let pipe = Pipe()
+        checkZoom.executableURL = URL(fileURLWithPath: tmux)
+        checkZoom.arguments = ["tmux"] + baseArgs + [
+            "display-message", "-p", "#{window_zoomed_flag}"
+        ]
+        checkZoom.standardOutput = pipe
+        try? checkZoom.run()
+        checkZoom.waitUntilExit()
+        let zoomFlag = String(
+            data: pipe.fileHandleForReading.readDataToEndOfFile(),
+            encoding: .utf8
+        )?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if zoomFlag == "1" {
+            let unzoom = Process()
+            unzoom.executableURL = URL(fileURLWithPath: tmux)
+            unzoom.arguments = ["tmux"] + baseArgs + ["resize-pane", "-Z"]
+            try? unzoom.run()
+            unzoom.waitUntilExit()
+        }
+
+        // Select the target pane
+        let selectPane = Process()
+        selectPane.executableURL = URL(fileURLWithPath: tmux)
+        selectPane.arguments = ["tmux"] + baseArgs + ["select-pane", "-t", paneId]
+        try? selectPane.run()
+        selectPane.waitUntilExit()
     }
 
     private func focusBySessionId(_ sessionId: String) {

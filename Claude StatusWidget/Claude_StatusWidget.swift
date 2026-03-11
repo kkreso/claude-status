@@ -30,6 +30,8 @@ struct Claude_StatusWidget: Widget {
             state: .active,
             lastActivityAt: Date().addingTimeInterval(-120),
             iTermSessionId: nil,
+            tmuxPaneId: nil,
+            tmuxSocket: nil,
             source: .terminal(app: "iTerm2"),
             activity: "Edit"
         ),
@@ -41,6 +43,8 @@ struct Claude_StatusWidget: Widget {
             state: .waiting,
             lastActivityAt: Date().addingTimeInterval(-180),
             iTermSessionId: nil,
+            tmuxPaneId: nil,
+            tmuxSocket: nil,
             source: .vscode,
             activity: ""
         ),
@@ -59,6 +63,8 @@ struct Claude_StatusWidget: Widget {
             state: .active,
             lastActivityAt: Date().addingTimeInterval(-120),
             iTermSessionId: nil,
+            tmuxPaneId: nil,
+            tmuxSocket: nil,
             source: .terminal(app: "iTerm2"),
             activity: "Edit"
         ),
@@ -70,6 +76,8 @@ struct Claude_StatusWidget: Widget {
             state: .waiting,
             lastActivityAt: Date().addingTimeInterval(-180),
             iTermSessionId: nil,
+            tmuxPaneId: nil,
+            tmuxSocket: nil,
             source: .vscode,
             activity: ""
         ),
@@ -81,6 +89,8 @@ struct Claude_StatusWidget: Widget {
             state: .active,
             lastActivityAt: Date().addingTimeInterval(-30),
             iTermSessionId: nil,
+            tmuxPaneId: nil,
+            tmuxSocket: nil,
             source: .terminal(app: "Ghostty"),
             activity: "Bash"
         ),
@@ -92,6 +102,8 @@ struct Claude_StatusWidget: Widget {
             state: .idle,
             lastActivityAt: Date().addingTimeInterval(-3600),
             iTermSessionId: nil,
+            tmuxPaneId: nil,
+            tmuxSocket: nil,
             source: .terminal(app: "Terminal"),
             activity: ""
         ),
@@ -103,6 +115,8 @@ struct Claude_StatusWidget: Widget {
             state: .compacting,
             lastActivityAt: Date().addingTimeInterval(-45),
             iTermSessionId: nil,
+            tmuxPaneId: nil,
+            tmuxSocket: nil,
             source: .jetbrains(ide: "IntelliJ"),
             activity: ""
         ),

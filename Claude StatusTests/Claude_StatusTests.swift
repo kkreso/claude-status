@@ -24,6 +24,8 @@ struct SessionStateTests {
             state: .active,
             lastActivityAt: Date(),
             iTermSessionId: nil,
+            tmuxPaneId: nil,
+            tmuxSocket: nil,
             source: .terminal(app: "Terminal"),
             activity: "Read"
         )
@@ -37,6 +39,8 @@ struct SessionStateTests {
             state: .waiting,
             lastActivityAt: Date().addingTimeInterval(-300),
             iTermSessionId: nil,
+            tmuxPaneId: nil,
+            tmuxSocket: nil,
             source: .terminal(app: "Terminal"),
             activity: "Bash"
         )
@@ -50,6 +54,8 @@ struct SessionStateTests {
             state: .idle,
             lastActivityAt: Date().addingTimeInterval(-7200),
             iTermSessionId: nil,
+            tmuxPaneId: nil,
+            tmuxSocket: nil,
             source: .terminal(app: "Terminal"),
             activity: ""
         )
@@ -65,6 +71,8 @@ struct SessionStateTests {
             state: .active,
             lastActivityAt: Date(),
             iTermSessionId: "w0t0p0:12345678-1234-1234-1234-123456789ABC",
+            tmuxPaneId: nil,
+            tmuxSocket: nil,
             source: .xcode,
             activity: "thinking"
         )

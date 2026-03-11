@@ -92,6 +92,8 @@ struct ClaudeSession: Identifiable, Codable {
     let state: SessionState
     let lastActivityAt: Date
     let iTermSessionId: String?
+    let tmuxPaneId: String?
+    let tmuxSocket: String?
     let source: SessionSource
     let activity: String
 
