@@ -259,7 +259,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func setupPopover() {
         popover.behavior = .transient
-        popover.appearance = NSAppearance(named: .darkAqua)
+        popover.appearance = nil
         let hostingController = NSHostingController(
             rootView: PopoverContentView(
                 monitor: monitor,
@@ -503,6 +503,7 @@ private struct PopoverContentView: View {
     var body: some View {
         SessionListView(
             sessions: monitor.sessions,
+            productivityData: monitor.productivityData,
             onSessionTap: onSessionTap,
             onRefresh: onRefresh,
             onSettings: onSettings,

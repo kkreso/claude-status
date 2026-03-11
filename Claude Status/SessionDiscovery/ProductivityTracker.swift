@@ -4,9 +4,10 @@ import Foundation
 ///
 /// Called by `SessionMonitor` on each refresh cycle. Computes deltas between
 /// snapshots, accumulates stats, and persists to the shared App Group container.
+/// Maintains both daily (resets at midnight) and all-time stats.
 final class ProductivityTracker {
 
-    private(set) var currentStats: ProductivityStats
+    private(set) var currentData: ProductivityData
 
     /// Previous snapshot state: session ID → SessionState.
     private var previousStates: [String: SessionState] = [:]
@@ -22,16 +23,21 @@ final class ProductivityTracker {
         sharedContainerURL = FileManager.default.containerURL(
             forSecurityApplicationGroupIdentifier: "group.com.poisonpenllc.Claude-Status"
         )
-        currentStats = Self.loadStats(from: sharedContainerURL) ?? .empty()
+        currentData = Self.loadData(from: sharedContainerURL) ?? ProductivityData(
+            today: .empty(),
+            allTime: .empty()
+        )
     }
 
     /// Records a snapshot of current sessions and accumulates time-in-state data.
     func recordSnapshot(sessions: [ClaudeSession]) {
         let now = Date()
 
-        // Day rollover check
-        if !Calendar.current.isDateInToday(currentStats.date) {
-            currentStats = .empty()
+        // Day rollover: archive today into allTime and reset
+        if !Calendar.current.isDateInToday(currentData.today.date) {
+            currentData.allTime.accumulate(from: currentData.today)
+            currentData.allTime.score = calculateScore(currentData.allTime)
+            currentData.today = .empty()
             previousStates = [:]
             lastSnapshotTime = nil
         }
@@ -53,18 +59,24 @@ final class ProductivityTracker {
         // Accumulate time-in-state from the *previous* snapshot's states
         for (_, state) in previousStates {
             let key = stateKey(state)
-            currentStats.timeInState[key, default: 0] += delta
+            currentData.today.timeInState[key, default: 0] += delta
         }
 
         // Track concurrency: count of active sessions in previous snapshot
         let activeCount = previousStates.values.filter { $0 == .active }.count
-        currentStats.concurrencySeconds[activeCount, default: 0] += delta
-        currentStats.peakConcurrency = max(currentStats.peakConcurrency, activeCount)
+        currentData.today.concurrencySeconds[activeCount, default: 0] += delta
+        currentData.today.peakConcurrency = max(currentData.today.peakConcurrency, activeCount)
 
-        currentStats.totalTrackedTime += delta
+        currentData.today.totalTrackedTime += delta
 
-        // Recalculate score
-        currentStats.score = calculateScore(currentStats)
+        // Recalculate today's score
+        currentData.today.score = calculateScore(currentData.today)
+
+        // Update combined all-time score (allTime base + today's delta)
+        var combined = currentData.allTime
+        combined.accumulate(from: currentData.today)
+        combined.score = calculateScore(combined)
+        currentData.allTime.score = combined.score
 
         // Update for next cycle
         previousStates = buildStateMap(sessions)
@@ -74,11 +86,11 @@ final class ProductivityTracker {
         save()
     }
 
-    /// Forces a save of current stats to the shared container.
+    /// Forces a save of current data to the shared container.
     func save() {
         guard let url = sharedContainerURL else { return }
         let fileURL = url.appendingPathComponent("productivity.json")
-        guard let data = try? JSONEncoder().encode(currentStats) else { return }
+        guard let data = try? JSONEncoder().encode(currentData) else { return }
         try? data.write(to: fileURL, options: .atomic)
     }
 
@@ -86,23 +98,19 @@ final class ProductivityTracker {
 
     /// Computes a 0–100 productivity score.
     ///
+    /// Active time is the main driver. Waiting is the biggest penalty — it means
+    /// Claude is blocked on you. Idle and compacting are neutral.
+    ///
     /// Weights:
-    /// - Active time ratio: up to 60 points (the main driver)
-    /// - Waiting time ratio: up to 20 points (you're interacting with Claude)
-    /// - Idle time penalty: up to -20 points
-    /// - Concurrency bonus: up to 20 points (capped at 4 concurrent sessions)
+    /// - Active time: up to 100 points (the goal)
+    /// - Waiting penalty: up to -50 points (you're the bottleneck)
+    /// - Concurrency bonus: up to 20 points (capped at 4 concurrent active sessions)
     private func calculateScore(_ stats: ProductivityStats) -> Int {
-        guard stats.totalTrackedTime > 0 else { return 0 }
+        guard stats.totalSessionTime > 0 else { return 0 }
 
-        let activeRatio = stats.activePercent
-        let waitingRatio = stats.waitingPercent
-        let idleRatio = stats.idlePercent
-        let avgConcurrency = stats.averageConcurrency
-
-        let baseScore = activeRatio * 60
-            + waitingRatio * 20
-            - idleRatio * 20
-            + min(avgConcurrency, 4) * 5
+        let baseScore = stats.activePercent * 100
+            - stats.waitingPercent * 50
+            + min(stats.averageConcurrency, 4) * 5
 
         return max(0, min(100, Int(baseScore)))
     }
@@ -128,17 +136,13 @@ final class ProductivityTracker {
 
     // MARK: - Persistence
 
-    private static func loadStats(from containerURL: URL?) -> ProductivityStats? {
+    private static func loadData(from containerURL: URL?) -> ProductivityData? {
         guard let url = containerURL else { return nil }
         let fileURL = url.appendingPathComponent("productivity.json")
         guard let data = try? Data(contentsOf: fileURL),
-              let stats = try? JSONDecoder().decode(ProductivityStats.self, from: data) else {
+              let loaded = try? JSONDecoder().decode(ProductivityData.self, from: data) else {
             return nil
         }
-        // Only return if it's today's stats
-        if Calendar.current.isDateInToday(stats.date) {
-            return stats
-        }
-        return nil
+        return loaded
     }
 }

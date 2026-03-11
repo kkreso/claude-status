@@ -27,24 +27,29 @@ struct ProductivityStats: Codable {
 
     // MARK: - Computed
 
+    /// Total session-seconds across all states (accounts for concurrent sessions).
+    var totalSessionTime: TimeInterval {
+        timeInState.values.reduce(0, +)
+    }
+
     var activePercent: Double {
-        guard totalTrackedTime > 0 else { return 0 }
-        return (timeInState["active"] ?? 0) / totalTrackedTime
+        guard totalSessionTime > 0 else { return 0 }
+        return (timeInState["active"] ?? 0) / totalSessionTime
     }
 
     var waitingPercent: Double {
-        guard totalTrackedTime > 0 else { return 0 }
-        return (timeInState["waiting"] ?? 0) / totalTrackedTime
+        guard totalSessionTime > 0 else { return 0 }
+        return (timeInState["waiting"] ?? 0) / totalSessionTime
     }
 
     var idlePercent: Double {
-        guard totalTrackedTime > 0 else { return 0 }
-        return (timeInState["idle"] ?? 0) / totalTrackedTime
+        guard totalSessionTime > 0 else { return 0 }
+        return (timeInState["idle"] ?? 0) / totalSessionTime
     }
 
     var compactingPercent: Double {
-        guard totalTrackedTime > 0 else { return 0 }
-        return (timeInState["compacting"] ?? 0) / totalTrackedTime
+        guard totalSessionTime > 0 else { return 0 }
+        return (timeInState["compacting"] ?? 0) / totalSessionTime
     }
 
     var averageConcurrency: Double {
@@ -73,6 +78,18 @@ struct ProductivityStats: Codable {
         return "\(minutes)m"
     }
 
+    /// Merges another stats instance into this one (for all-time accumulation).
+    mutating func accumulate(from other: ProductivityStats) {
+        for (key, value) in other.timeInState {
+            timeInState[key, default: 0] += value
+        }
+        peakConcurrency = max(peakConcurrency, other.peakConcurrency)
+        for (key, value) in other.concurrencySeconds {
+            concurrencySeconds[key, default: 0] += value
+        }
+        totalTrackedTime += other.totalTrackedTime
+    }
+
     /// A fresh stats instance for today.
     static func empty() -> ProductivityStats {
         ProductivityStats(
@@ -84,4 +101,10 @@ struct ProductivityStats: Codable {
             score: 0
         )
     }
+}
+
+/// Holds both today's stats and all-time cumulative stats.
+struct ProductivityData: Codable {
+    var today: ProductivityStats
+    var allTime: ProductivityStats
 }

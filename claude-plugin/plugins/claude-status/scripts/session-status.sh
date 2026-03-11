@@ -65,6 +65,15 @@ fi
 # Extract tool_name for tool-related events
 TOOL_NAME=$(extract_json_string "tool_name" "$INPUT")
 
+# Read the previous state from the existing .cstatus file (if any).
+# During compaction, tool-use hooks fire but should not override the
+# "compacting" state — only definitive end events (Stop, UserPromptSubmit,
+# SessionStart, SessionEnd) clear it.
+PREV_STATE=""
+if [[ -f "$STATUS_FILE" ]]; then
+    PREV_STATE=$(extract_json_string "state" "$(cat "$STATUS_FILE")")
+fi
+
 # Map hook event to session state and activity
 ACTIVITY=""
 case "$EVENT" in
@@ -127,6 +136,15 @@ case "$EVENT" in
         STATUS="active"
         ;;
 esac
+
+# Sticky compacting: if the previous state was "compacting", keep it unless
+# this is a definitive end event that means compaction is done.
+if [[ "$PREV_STATE" == "compacting" && "$STATUS" == "active" ]]; then
+    STATUS="compacting"
+    # Preserve tool activity info so the UI can show what's happening
+    ACTIVITY="${ACTIVITY:+compacting ($ACTIVITY)}"
+    [[ -z "$ACTIVITY" ]] && ACTIVITY="compacting"
+fi
 
 TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 

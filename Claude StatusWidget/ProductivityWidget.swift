@@ -4,20 +4,24 @@ import SwiftUI
 /// Timeline entry for productivity widgets.
 struct ProductivityEntry: TimelineEntry {
     let date: Date
-    let stats: ProductivityStats?
+    let data: ProductivityData?
 }
 
 /// Shared timeline provider for both productivity and score widgets.
 struct ProductivityTimelineProvider: TimelineProvider {
 
     func placeholder(in context: Context) -> ProductivityEntry {
-        ProductivityEntry(date: Date(), stats: ProductivityStats(
+        let sample = ProductivityStats(
             date: Calendar.current.startOfDay(for: Date()),
             timeInState: ["active": 5400, "waiting": 1800, "idle": 900, "compacting": 300],
             peakConcurrency: 3,
             concurrencySeconds: [1: 4200, 2: 3600, 3: 600],
             totalTrackedTime: 8400,
             score: 72
+        )
+        return ProductivityEntry(date: Date(), data: ProductivityData(
+            today: sample,
+            allTime: sample
         ))
     }
 
@@ -26,20 +30,20 @@ struct ProductivityTimelineProvider: TimelineProvider {
             completion(placeholder(in: context))
             return
         }
-        let stats = fetchStats()
-        completion(ProductivityEntry(date: Date(), stats: stats))
+        let data = fetchData()
+        completion(ProductivityEntry(date: Date(), data: data))
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<ProductivityEntry>) -> Void) {
-        let stats = fetchStats()
-        let entry = ProductivityEntry(date: Date(), stats: stats)
+        let data = fetchData()
+        let entry = ProductivityEntry(date: Date(), data: data)
 
         let nextUpdate = Calendar.current.date(byAdding: .second, value: 15, to: Date())!
         let timeline = Timeline(entries: [entry], policy: .after(nextUpdate))
         completion(timeline)
     }
 
-    private func fetchStats() -> ProductivityStats? {
+    private func fetchData() -> ProductivityData? {
         guard let sharedURL = FileManager.default.containerURL(
             forSecurityApplicationGroupIdentifier: "group.com.poisonpenllc.Claude-Status"
         ) else {
@@ -47,20 +51,15 @@ struct ProductivityTimelineProvider: TimelineProvider {
         }
 
         let dataURL = sharedURL.appendingPathComponent("productivity.json")
-        guard let data = try? Data(contentsOf: dataURL),
-              let stats = try? JSONDecoder().decode(ProductivityStats.self, from: data) else {
+        guard let fileData = try? Data(contentsOf: dataURL),
+              let loaded = try? JSONDecoder().decode(ProductivityData.self, from: fileData) else {
             return nil
         }
-
-        // Only return today's stats
-        if Calendar.current.isDateInToday(stats.date) {
-            return stats
-        }
-        return nil
+        return loaded
     }
 }
 
-/// Medium widget showing time-in-state breakdown as a horizontal bar and percentages.
+/// Medium widget showing time-in-state breakdown with today and all-time tabs.
 @MainActor
 struct Claude_ProductivityWidget: Widget {
     let kind: String = "Claude_ProductivityWidget"
@@ -71,8 +70,8 @@ struct Claude_ProductivityWidget: Widget {
                 .containerBackground(.fill.tertiary, for: .widget)
         }
         .configurationDisplayName("Productivity Breakdown")
-        .description("Time spent in each Claude session state today")
-        .supportedFamilies([.systemMedium])
+        .description("Time spent in each Claude session state")
+        .supportedFamilies([.systemMedium, .systemLarge])
     }
 }
 

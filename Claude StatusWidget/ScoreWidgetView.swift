@@ -3,10 +3,20 @@ import WidgetKit
 
 /// Small widget view showing productivity score as a circular ring with number.
 struct ScoreWidgetView: View {
+    @Environment(\.widgetRenderingMode) var renderingMode
     let entry: ProductivityEntry
 
+    private var stats: ProductivityStats? {
+        guard let data = entry.data, data.today.totalSessionTime > 0 else { return nil }
+        return data.today
+    }
+
+    private var isFullColor: Bool {
+        renderingMode == .fullColor
+    }
+
     var body: some View {
-        if let stats = entry.stats, stats.totalTrackedTime > 0 {
+        if let stats {
             VStack(spacing: 6) {
                 ZStack {
                     // Background ring
@@ -17,7 +27,7 @@ struct ScoreWidgetView: View {
                     Circle()
                         .trim(from: 0, to: CGFloat(stats.score) / 100)
                         .stroke(
-                            scoreColor(stats.score),
+                            isFullColor ? scoreColor(stats.score) : .primary,
                             style: StrokeStyle(lineWidth: 6, lineCap: .round)
                         )
                         .rotationEffect(.degrees(-90))
@@ -26,7 +36,7 @@ struct ScoreWidgetView: View {
                     VStack(spacing: 0) {
                         Text("\(stats.score)")
                             .font(.system(size: 32, weight: .bold, design: .rounded))
-                            .foregroundStyle(scoreColor(stats.score))
+                            .foregroundStyle(isFullColor ? scoreColor(stats.score) : .primary)
                         Text("Score")
                             .font(.system(size: 10))
                             .foregroundStyle(.secondary)
@@ -36,13 +46,23 @@ struct ScoreWidgetView: View {
 
                 HStack(spacing: 8) {
                     HStack(spacing: 2) {
-                        Circle().fill(.green).frame(width: 5, height: 5)
+                        if isFullColor {
+                            Circle().fill(.green).frame(width: 5, height: 5)
+                        } else {
+                            Image(systemName: "bolt.fill")
+                                .font(.system(size: 7))
+                        }
                         Text("\(Int(stats.activePercent * 100))%")
                             .font(.system(size: 9))
                             .foregroundStyle(.secondary)
                     }
                     HStack(spacing: 2) {
-                        Circle().fill(.orange).frame(width: 5, height: 5)
+                        if isFullColor {
+                            Circle().fill(.orange).frame(width: 5, height: 5)
+                        } else {
+                            Image(systemName: "clock.fill")
+                                .font(.system(size: 7))
+                        }
                         Text("\(Int(stats.waitingPercent * 100))%")
                             .font(.system(size: 9))
                             .foregroundStyle(.secondary)

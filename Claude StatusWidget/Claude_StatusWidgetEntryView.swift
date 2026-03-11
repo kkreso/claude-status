@@ -152,13 +152,21 @@ struct LargeWidgetView: View {
 // MARK: - Session Row
 
 /// A single session row matching the system widget style — icon, text, value aligned.
+/// Desktop (vibrant): always emoji — shapes are more distinguishable when desaturated.
+/// Sidebar (full color): respects the user's icon style preference (emoji or dots).
 struct SessionRowWidget: View {
+    @Environment(\.widgetRenderingMode) var renderingMode
     let session: ClaudeSession
+
+    /// Read the user's icon style preference from the shared App Group defaults.
+    private var iconStyle: String {
+        UserDefaults(suiteName: "group.com.poisonpenllc.Claude-Status")?
+            .string(forKey: "iconStyle") ?? "emoji"
+    }
 
     var body: some View {
         HStack(spacing: 10) {
-            Text(session.state.emoji)
-                .font(.system(size: 14))
+            statusIndicator
                 .frame(width: 22, alignment: .center)
 
             VStack(alignment: .leading, spacing: 1) {
@@ -194,5 +202,29 @@ struct SessionRowWidget: View {
             }
         }
         .padding(.vertical, 10)
+    }
+
+    @ViewBuilder
+    private var statusIndicator: some View {
+        // Only show dots when in full-color mode (sidebar) with dots preference.
+        // Default to emoji everywhere else — emoji shapes are more distinguishable
+        // on the desktop where colors are desaturated.
+        if renderingMode == .fullColor, iconStyle == "dots" {
+            Circle()
+                .fill(dotColor)
+                .frame(width: 8, height: 8)
+        } else {
+            Text(session.state.emoji)
+                .font(.system(size: 14))
+        }
+    }
+
+    private var dotColor: Color {
+        switch session.state {
+        case .active: .green
+        case .waiting: .orange
+        case .compacting: .blue
+        case .idle: .gray
+        }
     }
 }

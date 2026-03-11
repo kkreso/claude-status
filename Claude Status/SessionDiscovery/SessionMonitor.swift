@@ -11,7 +11,7 @@ import WidgetKit
 final class SessionMonitor {
 
     private(set) var sessions: [ClaudeSession] = []
-    private(set) var productivityStats: ProductivityStats = .empty()
+    private(set) var productivityData: ProductivityData = ProductivityData(today: .empty(), allTime: .empty())
 
     /// Whether the Claude Code session-status plugin is installed.
     /// Based on `PluginDetector` checking installed_plugins.json and settings.json hooks.
@@ -126,7 +126,7 @@ final class SessionMonitor {
 
         // Track time-in-state for productivity scoring
         tracker.recordSnapshot(sessions: result.sessions)
-        productivityStats = tracker.currentStats
+        productivityData = tracker.currentData
 
         updatePluginState()
 
