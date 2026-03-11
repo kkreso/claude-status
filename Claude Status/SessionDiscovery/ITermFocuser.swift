@@ -156,7 +156,14 @@ struct SessionFocuser {
         selectPane.waitUntilExit()
     }
 
+    /// Validates that a string looks like a UUID or iTerm2 session ID (safe for AppleScript interpolation).
+    private static let safeIdPattern = try! NSRegularExpression(pattern: #"^[A-Za-z0-9\-]+$"#)
+
     private func focusBySessionId(_ sessionId: String) {
+        // Validate sessionId to prevent AppleScript injection
+        let range = NSRange(sessionId.startIndex..., in: sessionId)
+        guard Self.safeIdPattern.firstMatch(in: sessionId, range: range) != nil else { return }
+
         let script = """
         tell application "iTerm2"
             activate
@@ -176,8 +183,15 @@ struct SessionFocuser {
         runAppleScript(script)
     }
 
+    /// Escapes a string for safe interpolation into AppleScript string literals.
+    private func appleScriptEscape(_ string: String) -> String {
+        string
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+    }
+
     private func openTab(at directory: String) {
-        let escapedDir = directory.replacingOccurrences(of: "\"", with: "\\\"")
+        let escapedDir = appleScriptEscape(directory)
         let script = """
         tell application "iTerm2"
             activate

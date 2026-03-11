@@ -12,6 +12,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var eventMonitor: Any?
     private var settingsWindow: NSWindow?
 
+    /// Cached state for change detection in status icon updates.
+    private var lastRenderedState: SessionState?
+    private var lastRenderedHookMissing: Bool = false
+    private var lastRenderedIconStyle: String?
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupMainMenu()
         setupStatusItem()
@@ -104,19 +109,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func updateStatusIcon() {
         guard let button = statusItem.button else { return }
 
-        let sessions = monitor.sessions
         let hookMissing = monitor.hookDetected == false
-        let aggregateState: SessionState? = if sessions.isEmpty {
-            nil
-        } else if sessions.contains(where: { $0.state == .waiting }) {
-            .waiting
-        } else if sessions.contains(where: { $0.state == .active }) {
-            .active
-        } else if sessions.contains(where: { $0.state == .compacting }) {
-            .compacting
-        } else {
-            .idle
+        let aggregateState = monitor.aggregateState
+        let sharedDefaults = UserDefaults(suiteName: "group.com.poisonpenllc.Claude-Status")
+        let iconStyle = sharedDefaults?.string(forKey: "iconStyle")
+
+        // Skip redraw if nothing has changed
+        if aggregateState == lastRenderedState
+            && hookMissing == lastRenderedHookMissing
+            && iconStyle == lastRenderedIconStyle {
+            return
         }
+        lastRenderedState = aggregateState
+        lastRenderedHookMissing = hookMissing
+        lastRenderedIconStyle = iconStyle
 
         // Get the base icon
         let baseIcon: NSImage
@@ -137,9 +143,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             button.title = ""
             return
         }
-
-        let sharedDefaults = UserDefaults(suiteName: "group.com.poisonpenllc.Claude-Status")
-        let useEmoji = sharedDefaults?.string(forKey: "iconStyle") != "dots"
+        let useEmoji = iconStyle != "dots"
 
         if useEmoji {
             // Emoji mode: compose icon with emoji overlay in bottom-right
@@ -336,6 +340,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             errorAlert.alertStyle = .warning
             errorAlert.runModal()
         } else {
+            monitor.invalidatePluginCache()
             monitor.refresh()
 
             let successAlert = NSAlert()
@@ -355,6 +360,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             errorAlert.runModal()
         } else {
             // Clear the hookDetected = false state so the warning disappears
+            monitor.invalidatePluginCache()
             monitor.refresh()
 
             let successAlert = NSAlert()
@@ -445,13 +451,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 private extension NSImage {
     /// Returns a copy of the image tinted with the given color.
     func tinted(with color: NSColor) -> NSImage {
-        let image = self.copy() as! NSImage
-        image.lockFocus()
-        color.set()
-        let rect = NSRect(origin: .zero, size: image.size)
-        rect.fill(using: .sourceAtop)
-        image.unlockFocus()
-        return image
+        let imageSize = self.size
+        return NSImage(size: imageSize, flipped: false) { rect in
+            self.draw(in: rect)
+            color.set()
+            rect.fill(using: .sourceAtop)
+            return true
+        }
     }
 }
 

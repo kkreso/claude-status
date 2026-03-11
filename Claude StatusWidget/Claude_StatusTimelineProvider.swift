@@ -61,10 +61,11 @@ struct Claude_StatusTimelineProvider: TimelineProvider {
         let currentDate = Date()
         let entry = SessionEntry(date: currentDate, sessions: sessions)
 
-        // Refresh every 60 seconds
+        // Fallback refresh every 15 seconds (the main app also pushes updates
+        // via WidgetCenter.reloadTimelines on every session state change)
         let nextUpdate = Calendar.current.date(
             byAdding: .second,
-            value: 60,
+            value: 15,
             to: currentDate
         )!
 

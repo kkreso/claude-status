@@ -100,6 +100,7 @@ struct PluginInstaller {
     // MARK: - CLI Runner
 
     /// Runs a CLI command and returns nil on success, or the stderr/error on failure.
+    /// Reads pipe output before waiting to prevent deadlock when pipe buffers fill.
     private func runCLI(_ path: String, arguments: [String]) -> String? {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: path)
@@ -111,23 +112,53 @@ struct PluginInstaller {
         env["PATH"] = "\(homedir)/.local/bin:/usr/local/bin:/opt/homebrew/bin:" + (env["PATH"] ?? "")
         process.environment = env
 
-        let stderr = Pipe()
-        let stdout = Pipe()
-        process.standardError = stderr
-        process.standardOutput = stdout
+        let stderrPipe = Pipe()
+        let stdoutPipe = Pipe()
+        process.standardError = stderrPipe
+        process.standardOutput = stdoutPipe
+
+        // Read pipe output asynchronously to prevent deadlock when buffers fill
+        var stderrData = Data()
+        var stdoutData = Data()
+        stderrPipe.fileHandleForReading.readabilityHandler = { handle in
+            stderrData.append(handle.availableData)
+        }
+        stdoutPipe.fileHandleForReading.readabilityHandler = { handle in
+            stdoutData.append(handle.availableData)
+        }
 
         do {
             try process.run()
-            process.waitUntilExit()
         } catch {
+            stderrPipe.fileHandleForReading.readabilityHandler = nil
+            stdoutPipe.fileHandleForReading.readabilityHandler = nil
             return error.localizedDescription
         }
 
+        // Timeout after 30 seconds to avoid blocking the app indefinitely
+        let deadline = DispatchTime.now() + .seconds(30)
+        let group = DispatchGroup()
+        group.enter()
+        DispatchQueue.global().async {
+            process.waitUntilExit()
+            group.leave()
+        }
+        if group.wait(timeout: deadline) == .timedOut {
+            process.terminate()
+            stderrPipe.fileHandleForReading.readabilityHandler = nil
+            stdoutPipe.fileHandleForReading.readabilityHandler = nil
+            return "CLI command timed out after 30 seconds"
+        }
+
+        // Drain remaining data and clean up handlers
+        stderrPipe.fileHandleForReading.readabilityHandler = nil
+        stdoutPipe.fileHandleForReading.readabilityHandler = nil
+        stderrData.append(stderrPipe.fileHandleForReading.readDataToEndOfFile())
+        stdoutData.append(stdoutPipe.fileHandleForReading.readDataToEndOfFile())
+
         if process.terminationStatus != 0 {
-            let errorData = stderr.fileHandleForReading.readDataToEndOfFile()
-            let errorString = String(data: errorData, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            let outData = stdout.fileHandleForReading.readDataToEndOfFile()
-            let outString = String(data: outData, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let errorString = String(data: stderrData, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let outString = String(data: stdoutData, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             return errorString.isEmpty ? (outString.isEmpty ? "Exit code \(process.terminationStatus)" : outString) : errorString
         }
 

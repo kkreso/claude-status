@@ -88,7 +88,11 @@ struct MediumWidgetView: View {
     }
 
     private func deepLinkURL(for session: ClaudeSession) -> URL {
-        URL(string: "claude-status://session/\(session.id)")!
+        var components = URLComponents()
+        components.scheme = "claude-status"
+        components.host = "session"
+        components.path = "/\(session.id)"
+        return components.url ?? URL(string: "claude-status://session/unknown")!
     }
 }
 
@@ -163,7 +167,11 @@ struct LargeWidgetView: View {
     }
 
     private func deepLinkURL(for session: ClaudeSession) -> URL {
-        URL(string: "claude-status://session/\(session.id)")!
+        var components = URLComponents()
+        components.scheme = "claude-status"
+        components.host = "session"
+        components.path = "/\(session.id)"
+        return components.url ?? URL(string: "claude-status://session/unknown")!
     }
 }
 

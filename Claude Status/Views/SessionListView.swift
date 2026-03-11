@@ -15,14 +15,8 @@ struct SessionListView: View {
 
     private let menuFont = Font.system(size: 13)
 
-    /// Sessions sorted by state (Waiting, Active, Compacting, Idle), then time in state desc.
     private var sortedSessions: [ClaudeSession] {
-        sessions.sorted {
-            if $0.state.sortOrder != $1.state.sortOrder {
-                return $0.state.sortOrder < $1.state.sortOrder
-            }
-            return $0.lastActivityAt > $1.lastActivityAt
-        }
+        sessions.sortedByStateAndActivity
     }
 
     /// Max height for session list: 80% of screen height minus chrome.
@@ -162,5 +156,3 @@ private struct MenuButtonView<Content: View>: View {
     }
 
 }
-
-extension SessionIconStyle: RawRepresentable {}

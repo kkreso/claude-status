@@ -21,8 +21,8 @@ final class StateResolver {
     }
 
     deinit {
+        // Cancel the watcher; the cancel handler closes the file descriptor.
         fileWatcher?.cancel()
-        fileWatcher = nil
     }
 
     /// Resolves state from JSONL modification times for a given project directory.

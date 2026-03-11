@@ -97,7 +97,7 @@ enum SessionSource: Codable, Equatable {
 }
 
 /// A discovered Claude Code session on the local machine.
-struct ClaudeSession: Identifiable, Codable {
+struct ClaudeSession: Identifiable, Codable, Equatable {
     /// The session UUID from Claude Code (stable across refreshes).
     let sessionId: String
     let pid: pid_t
@@ -129,6 +129,27 @@ struct ClaudeSession: Identifiable, Codable {
         } else {
             let hours = Int(interval / 3600)
             return "\(hours)h ago"
+        }
+    }
+
+    /// Deep link URL for focusing this session from the widget.
+    var deepLinkURL: URL {
+        var components = URLComponents()
+        components.scheme = "claude-status"
+        components.host = "session"
+        components.path = "/\(id)"
+        return components.url ?? URL(string: "claude-status://session/unknown")!
+    }
+}
+
+extension Array where Element == ClaudeSession {
+    /// Sessions sorted by state (Waiting, Active, Compacting, Idle), then most recent first.
+    var sortedByStateAndActivity: [ClaudeSession] {
+        sorted {
+            if $0.state.sortOrder != $1.state.sortOrder {
+                return $0.state.sortOrder < $1.state.sortOrder
+            }
+            return $0.lastActivityAt > $1.lastActivityAt
         }
     }
 }

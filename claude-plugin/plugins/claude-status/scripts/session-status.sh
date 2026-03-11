@@ -20,6 +20,12 @@ set -euo pipefail
 # Read JSON input from stdin
 INPUT=$(cat)
 
+# Escape a string for safe interpolation into JSON string values.
+# Handles backslash, double quote, and control characters.
+json_escape() {
+    printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's/	/\\t/g'
+}
+
 # Extract a string value from JSON using only sed (no jq dependency)
 extract_json_string() {
     local key="$1"
@@ -124,10 +130,18 @@ esac
 
 TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
+# Escape values that may contain special characters for JSON safety
+SAFE_SESSION_ID=$(json_escape "$SESSION_ID")
+SAFE_ACTIVITY=$(json_escape "$ACTIVITY")
+SAFE_CWD=$(json_escape "$CWD")
+SAFE_EVENT=$(json_escape "$EVENT")
+
 # Write atomically: temp file then move (prevents partial reads)
 TMP_FILE="${STATUS_FILE}.tmp.$$"
+trap 'rm -f "$TMP_FILE"' EXIT
+
 cat > "$TMP_FILE" << EOF
-{"session_id":"${SESSION_ID}","pid":${CLAUDE_PID},"ppid":${CLAUDE_PPID},"state":"${STATUS}","activity":"${ACTIVITY}","timestamp":"${TIMESTAMP}","cwd":"${CWD}","event":"${EVENT}"}
+{"session_id":"${SAFE_SESSION_ID}","pid":${CLAUDE_PID},"ppid":${CLAUDE_PPID},"state":"${STATUS}","activity":"${SAFE_ACTIVITY}","timestamp":"${TIMESTAMP}","cwd":"${SAFE_CWD}","event":"${SAFE_EVENT}"}
 EOF
 
 mv -f "$TMP_FILE" "$STATUS_FILE"

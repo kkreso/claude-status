@@ -55,7 +55,7 @@ struct PluginDetector {
             return false
         }
 
-        let installed = plugins.keys.contains { $0.localizedCaseInsensitiveContains("claude-status") }
+        let installed = plugins.keys.contains { $0.contains("claude-status") }
         guard installed else { return false }
 
         // Also verify it's enabled
@@ -66,7 +66,7 @@ struct PluginDetector {
             return installed // installed but can't check enabled — assume yes
         }
 
-        return enabled.keys.contains { $0.localizedCaseInsensitiveContains("claude-status") }
+        return enabled.keys.contains { $0.contains("claude-status") }
     }
 
     // MARK: - Settings Hooks Check

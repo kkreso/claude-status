@@ -1,4 +1,5 @@
 import Foundation
+import WidgetKit
 
 /// Monitors Claude Code sessions by scanning .cstatus files and filesystem state.
 ///
@@ -30,11 +31,21 @@ final class SessionMonitor {
     /// Maps session ID → .cstatus file URL for fast notification-driven refresh.
     private var cstatusCache: [String: URL] = [:]
 
+    /// Cached plugin detection state and when it was last checked.
+    private var lastPluginCheck: Date = .distantPast
+    private var cachedPluginState: PluginInstallState = .unknown
+    private static let pluginCheckInterval: TimeInterval = 30
+
     /// Darwin notification name posted by the hook script.
     private static let darwinNotificationName = "com.poisonpenllc.Claude-Status.session-changed" as CFString
 
     init(scanInterval: TimeInterval = 5.0) {
         self.scanInterval = scanInterval
+    }
+
+    deinit {
+        timer?.invalidate()
+        unregisterDarwinNotification()
     }
 
     @MainActor
@@ -97,35 +108,45 @@ final class SessionMonitor {
         applyResult(result)
     }
 
-    /// Fast refresh: clear dead session cache (notification means something is alive),
-    /// then re-read cached .cstatus file paths without re-enumerating directories.
+    /// Notification-driven refresh: always do a full scan since the notification
+    /// may signal a new session that isn't in our cache yet.
     private func refreshFromNotification() {
         discovery.clearDeadSessions()
-
-        if cstatusCache.isEmpty {
-            refresh()
-            return
-        }
-
-        let result = discovery.refreshFromCache(cstatusCache)
-        applyResult(result)
+        refresh()
     }
 
     /// Applies a discovery result: updates sessions, cache, and hook detection.
+    /// Only writes to the shared container and reloads the widget when data changes.
     private func applyResult(_ result: SessionDiscovery.DiscoveryResult) {
+        let changed = sessions != result.sessions
         sessions = result.sessions
         cstatusCache = result.cstatusFiles
 
-        // Always check actual plugin/hook installation state via PluginDetector.
-        // Old .cstatus files can exist even after hooks are removed.
-        let state = pluginDetector.detect()
-        switch state {
+        updatePluginState()
+
+        if changed {
+            writeSessionsToSharedContainer()
+        }
+    }
+
+    /// Checks plugin installation state, caching the result to avoid
+    /// reading JSON files from disk on every refresh cycle.
+    private func updatePluginState() {
+        let now = Date()
+        if now.timeIntervalSince(lastPluginCheck) >= Self.pluginCheckInterval {
+            cachedPluginState = pluginDetector.detect()
+            lastPluginCheck = now
+        }
+        switch cachedPluginState {
         case .installed: hookDetected = true
         case .notInstalled: hookDetected = false
         case .unknown: hookDetected = nil
         }
+    }
 
-        writeSessionsToSharedContainer()
+    /// Forces a fresh plugin detection check (e.g. after install/uninstall).
+    func invalidatePluginCache() {
+        lastPluginCheck = .distantPast
     }
 
     // MARK: - Shared Data
@@ -144,5 +165,7 @@ final class SessionMonitor {
         }
 
         try? encoded.write(to: dataURL, options: .atomic)
+
+        WidgetCenter.shared.reloadTimelines(ofKind: "Claude_StatusWidget")
     }
 }

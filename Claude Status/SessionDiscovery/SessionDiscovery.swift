@@ -88,6 +88,11 @@ struct SessionDiscovery {
         deadSessions.removeAll()
     }
 
+    private static let iso8601Formatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        return formatter
+    }()
+
     // MARK: - File Scanning
 
     /// Enumerates all `.cstatus` files under `~/.claude/projects/*/`.
@@ -148,8 +153,7 @@ struct SessionDiscovery {
 
         let activity = json["activity"] as? String ?? ""
 
-        let formatter = ISO8601DateFormatter()
-        let timestamp = formatter.date(from: timestampString) ?? Date()
+        let timestamp = Self.iso8601Formatter.date(from: timestampString) ?? Date()
 
         let cwd = json["cwd"] as? String ?? ""
         let event = json["event"] as? String ?? ""
@@ -219,9 +223,14 @@ struct SessionDiscovery {
 
     // MARK: - Process Validation
 
-    /// Checks if a process is still alive using kill(pid, 0).
+    /// Checks if a process is still alive and is a Claude-related process.
+    /// Uses kill(pid, 0) for liveness, then verifies the executable path
+    /// to guard against PID recycling by unrelated processes.
     private func isProcessAlive(_ pid: pid_t) -> Bool {
-        kill(pid, 0) == 0
+        guard kill(pid, 0) == 0 else { return false }
+        // Verify the process is actually Claude (guards against PID recycling)
+        guard let path = executablePath(for: pid) else { return true }
+        return path.contains("claude") || path.contains("Claude") || path.contains("node")
     }
 
     // MARK: - Source Classification
