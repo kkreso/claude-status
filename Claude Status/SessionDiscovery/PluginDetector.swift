@@ -90,7 +90,7 @@ struct PluginDetector {
             return installed // installed but can't check enabled — assume yes
         }
 
-        return enabled.keys.contains { $0.hasPrefix("claude-status@") }
+        return enabled.contains { $0.key.hasPrefix("claude-status@") && $0.value }
     }
 
     // MARK: - Settings Hooks Check
