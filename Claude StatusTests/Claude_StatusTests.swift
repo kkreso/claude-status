@@ -71,9 +71,9 @@ struct SessionStateTests {
             state: .active,
             lastActivityAt: Date(),
             iTermSessionId: "w0t0p0:12345678-1234-1234-1234-123456789ABC",
-            tmuxPaneId: nil,
-            tmuxSocket: nil,
-            source: .xcode,
+            tmuxPaneId: "%5",
+            tmuxSocket: "/tmp/tmux-501/default",
+            source: .terminal(app: "iTerm2"),
             activity: "thinking"
         )
 
@@ -86,7 +86,10 @@ struct SessionStateTests {
         #expect(decoded.projectName == session.projectName)
         #expect(decoded.state == session.state)
         #expect(decoded.iTermSessionId == session.iTermSessionId)
+        #expect(decoded.tmuxPaneId == "%5")
+        #expect(decoded.tmuxSocket == "/tmp/tmux-501/default")
         #expect(decoded.source == session.source)
+        #expect(decoded.activity == session.activity)
     }
 }
 

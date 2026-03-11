@@ -99,17 +99,29 @@ struct SessionFocuser {
 
     /// Selects the target tmux pane and its window so it's visible when
     /// the terminal app comes to front. Unzooms first if another pane is zoomed.
+    /// Resolves the tmux binary path, checking common Homebrew and MacPorts
+    /// locations before falling back to PATH lookup via /usr/bin/env.
+    private static let tmuxPath: String = {
+        for candidate in ["/opt/homebrew/bin/tmux", "/usr/local/bin/tmux", "/opt/local/bin/tmux"] {
+            if FileManager.default.isExecutableFile(atPath: candidate) {
+                return candidate
+            }
+        }
+        return "/usr/bin/env"
+    }()
+
     private func focusTmuxPane(paneId: String, socket: String?) {
         var baseArgs = [String]()
         if let socket {
             baseArgs += ["-S", socket]
         }
-        let tmux = "/usr/bin/env"
+        let tmuxBin = Self.tmuxPath
+        let usesEnv = tmuxBin == "/usr/bin/env"
 
         // Select the window containing the target pane
         let selectWindow = Process()
-        selectWindow.executableURL = URL(fileURLWithPath: tmux)
-        selectWindow.arguments = ["tmux"] + baseArgs + ["select-window", "-t", paneId]
+        selectWindow.executableURL = URL(fileURLWithPath: tmuxBin)
+        selectWindow.arguments = (usesEnv ? ["tmux"] : []) + baseArgs + ["select-window", "-t", paneId]
         try? selectWindow.run()
         selectWindow.waitUntilExit()
 
@@ -117,8 +129,8 @@ struct SessionFocuser {
         // check window_zoomed_flag first to avoid accidentally zooming in)
         let checkZoom = Process()
         let pipe = Pipe()
-        checkZoom.executableURL = URL(fileURLWithPath: tmux)
-        checkZoom.arguments = ["tmux"] + baseArgs + [
+        checkZoom.executableURL = URL(fileURLWithPath: tmuxBin)
+        checkZoom.arguments = (usesEnv ? ["tmux"] : []) + baseArgs + [
             "display-message", "-p", "#{window_zoomed_flag}"
         ]
         checkZoom.standardOutput = pipe
@@ -130,16 +142,16 @@ struct SessionFocuser {
         )?.trimmingCharacters(in: .whitespacesAndNewlines)
         if zoomFlag == "1" {
             let unzoom = Process()
-            unzoom.executableURL = URL(fileURLWithPath: tmux)
-            unzoom.arguments = ["tmux"] + baseArgs + ["resize-pane", "-Z"]
+            unzoom.executableURL = URL(fileURLWithPath: tmuxBin)
+            unzoom.arguments = (usesEnv ? ["tmux"] : []) + baseArgs + ["resize-pane", "-Z"]
             try? unzoom.run()
             unzoom.waitUntilExit()
         }
 
         // Select the target pane
         let selectPane = Process()
-        selectPane.executableURL = URL(fileURLWithPath: tmux)
-        selectPane.arguments = ["tmux"] + baseArgs + ["select-pane", "-t", paneId]
+        selectPane.executableURL = URL(fileURLWithPath: tmuxBin)
+        selectPane.arguments = (usesEnv ? ["tmux"] : []) + baseArgs + ["select-pane", "-t", paneId]
         try? selectPane.run()
         selectPane.waitUntilExit()
     }

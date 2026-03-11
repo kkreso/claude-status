@@ -183,7 +183,16 @@ struct SessionDiscovery {
             tmuxPaneId = readEnvironmentVariable(for: record.pid, name: "TMUX_PANE")
             if let tmuxEnv = readEnvironmentVariable(for: record.pid, name: "TMUX") {
                 // TMUX env var format: /socket/path,pid,session
-                tmuxSocket = tmuxEnv.split(separator: ",").first.map(String.init)
+                // Use suffix-based parsing to handle commas in socket paths
+                let parts = tmuxEnv.components(separatedBy: ",")
+                if parts.count >= 3 {
+                    // Last two components are pid and session number;
+                    // everything before is the socket path (may contain commas).
+                    let suffixLen = parts[parts.count - 1].count + parts[parts.count - 2].count + 2
+                    tmuxSocket = String(tmuxEnv.dropLast(suffixLen))
+                } else {
+                    tmuxSocket = parts.first
+                }
             } else {
                 tmuxSocket = nil
             }
@@ -242,17 +251,6 @@ struct SessionDiscovery {
             return .zed
         }
 
-        // If inside tmux, the tmux server is reparented to pid 1 so the
-        // process tree walk won't reach the terminal. Check for IDE env
-        // vars first, then identify the real terminal app.
-        if readEnvironmentVariable(for: pid, name: "TMUX") != nil {
-            // VS Code sets VSCODE_* env vars that survive into tmux
-            if readEnvironmentVariable(for: pid, name: "VSCODE_GIT_IPC_HANDLE") != nil {
-                return .vscode
-            }
-            return .terminal(app: resolveTerminalFromTmux(pid: pid))
-        }
-
         // Walk the ancestor chain starting from ppid
         var current = ppid
         for _ in 0..<8 {
@@ -297,6 +295,20 @@ struct SessionDiscovery {
 
             guard let nextPid = parentPid(for: current) else { break }
             current = nextPid
+        }
+
+        // If inside tmux, the tmux server is reparented to pid 1 so the
+        // ancestor walk above won't reach the terminal. Check for IDE env
+        // vars that survive into tmux sessions.
+        if readEnvironmentVariable(for: pid, name: "TMUX") != nil {
+            if readEnvironmentVariable(for: pid, name: "VSCODE_GIT_IPC_HANDLE") != nil {
+                return .vscode
+            }
+            if let termProgram = readEnvironmentVariable(for: pid, name: "TERM_PROGRAM"),
+               termProgram == "Zed" {
+                return .zed
+            }
+            return .terminal(app: resolveTerminalFromTmux(pid: pid))
         }
 
         // Fallback: check TERM_PROGRAM env var

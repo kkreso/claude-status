@@ -25,6 +25,8 @@ struct Claude_StatusTimelineProvider: TimelineProvider {
                 state: .active,
                 lastActivityAt: Date(),
                 iTermSessionId: nil,
+                tmuxPaneId: nil,
+                tmuxSocket: nil,
                 source: .terminal(app: "Terminal"),
                 activity: "Edit"
             ),
@@ -36,6 +38,8 @@ struct Claude_StatusTimelineProvider: TimelineProvider {
                 state: .waiting,
                 lastActivityAt: Date().addingTimeInterval(-120),
                 iTermSessionId: nil,
+                tmuxPaneId: nil,
+                tmuxSocket: nil,
                 source: .vscode,
                 activity: ""
             ),
