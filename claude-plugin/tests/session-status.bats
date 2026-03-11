@@ -166,6 +166,34 @@ read_status_int() {
     [ "$(read_status_field state)" = "compacting" ]
 }
 
+@test "compacting state persists through SubagentStart" {
+    run_hook "PreCompact" ',"trigger":"auto"'
+    run_hook "SubagentStart" ',"agent_type":"Explore"'
+    [ "$status" -eq 0 ]
+    [ "$(read_status_field state)" = "compacting" ]
+}
+
+@test "compacting state persists through SubagentStop" {
+    run_hook "PreCompact" ',"trigger":"auto"'
+    run_hook "SubagentStop"
+    [ "$status" -eq 0 ]
+    [ "$(read_status_field state)" = "compacting" ]
+}
+
+@test "compacting state persists through PostToolUseFailure" {
+    run_hook "PreCompact" ',"trigger":"auto"'
+    run_hook "PostToolUseFailure" ',"tool_name":"Bash"'
+    [ "$status" -eq 0 ]
+    [ "$(read_status_field state)" = "compacting" ]
+}
+
+@test "compacting state clears on PermissionRequest" {
+    run_hook "PreCompact" ',"trigger":"auto"'
+    run_hook "PermissionRequest" ',"tool_name":"Bash"'
+    [ "$status" -eq 0 ]
+    [ "$(read_status_field state)" = "waiting" ]
+}
+
 @test "compacting state clears on UserPromptSubmit" {
     run_hook "PreCompact" ',"trigger":"auto"'
     run_hook "UserPromptSubmit"
@@ -244,3 +272,45 @@ SH
     [ "$status" -eq 0 ]
     [ "$(read_status_field state)" = "active" ]
 }
+
+# --- JSON escaping edge cases ---
+
+@test "cwd with double quotes is escaped in output" {
+    local input
+    input=$(cat <<JSON
+{"hook_event_name":"SessionStart","session_id":"${SESSION_ID}","transcript_path":"${PROJECT_DIR}/transcript.jsonl","cwd":"/tmp/has-quote"}
+JSON
+    )
+    mkdir -p "${BATS_TEST_TMPDIR}/bin"
+    printf '#!/bin/bash\necho "1"\n' > "${BATS_TEST_TMPDIR}/bin/ps"
+    chmod +x "${BATS_TEST_TMPDIR}/bin/ps"
+    printf '#!/bin/bash\nexit 0\n' > "${BATS_TEST_TMPDIR}/bin/notifyutil"
+    chmod +x "${BATS_TEST_TMPDIR}/bin/notifyutil"
+
+    PATH="${BATS_TEST_TMPDIR}/bin:$PATH" CLAUDE_PID=12345 \
+        run bash "$SCRIPT" <<< "$input"
+    [ "$status" -eq 0 ]
+    [ -f "$STATUS_FILE" ]
+    # File should be valid (no unescaped quotes breaking JSON structure)
+    [ "$(read_status_field state)" = "idle" ]
+}
+
+@test "cwd with backslash is escaped in output" {
+    local input
+    input=$(cat <<JSON
+{"hook_event_name":"SessionStart","session_id":"${SESSION_ID}","transcript_path":"${PROJECT_DIR}/transcript.jsonl","cwd":"/tmp/back\\\\slash"}
+JSON
+    )
+    mkdir -p "${BATS_TEST_TMPDIR}/bin"
+    printf '#!/bin/bash\necho "1"\n' > "${BATS_TEST_TMPDIR}/bin/ps"
+    chmod +x "${BATS_TEST_TMPDIR}/bin/ps"
+    printf '#!/bin/bash\nexit 0\n' > "${BATS_TEST_TMPDIR}/bin/notifyutil"
+    chmod +x "${BATS_TEST_TMPDIR}/bin/notifyutil"
+
+    PATH="${BATS_TEST_TMPDIR}/bin:$PATH" CLAUDE_PID=12345 \
+        run bash "$SCRIPT" <<< "$input"
+    [ "$status" -eq 0 ]
+    [ -f "$STATUS_FILE" ]
+    [ "$(read_status_field state)" = "idle" ]
+}
+

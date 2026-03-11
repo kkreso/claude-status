@@ -126,12 +126,7 @@ final class ProductivityTracker {
     }
 
     private func stateKey(_ state: SessionState) -> String {
-        switch state {
-        case .active: "active"
-        case .waiting: "waiting"
-        case .idle: "idle"
-        case .compacting: "compacting"
-        }
+        state.key
     }
 
     // MARK: - Persistence

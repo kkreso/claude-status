@@ -164,7 +164,7 @@ TMP_FILE="${STATUS_FILE}.tmp.$$"
 trap 'rm -f "$TMP_FILE"' EXIT
 
 cat > "$TMP_FILE" << EOF
-{"session_id":"${SAFE_SESSION_ID}","pid":${CLAUDE_PID},"ppid":${CLAUDE_PPID},"state":"${STATUS}","activity":"${SAFE_ACTIVITY}","timestamp":"${TIMESTAMP}","cwd":"${SAFE_CWD}","event":"${SAFE_EVENT}"}
+{"session_id":"${SAFE_SESSION_ID}","pid":${CLAUDE_PID:-0},"ppid":${CLAUDE_PPID:-0},"state":"${STATUS}","activity":"${SAFE_ACTIVITY}","timestamp":"${TIMESTAMP}","cwd":"${SAFE_CWD}","event":"${SAFE_EVENT}"}
 EOF
 
 mv -f "$TMP_FILE" "$STATUS_FILE"

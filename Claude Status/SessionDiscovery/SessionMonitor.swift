@@ -170,7 +170,6 @@ final class SessionMonitor {
     // MARK: - Shared Data
 
     private func writeToSharedContainer() {
-        lastWidgetUpdate = Date()
         guard let sharedURL = FileManager.default.containerURL(
             forSecurityApplicationGroupIdentifier: "group.com.poisonpenllc.Claude-Status"
         ) else {
@@ -186,6 +185,8 @@ final class SessionMonitor {
             let prodURL = sharedURL.appendingPathComponent("productivity.json")
             try? encoded.write(to: prodURL, options: .atomic)
         }
+
+        lastWidgetUpdate = Date()
 
         WidgetCenter.shared.reloadTimelines(ofKind: "Claude_StatusWidget")
         WidgetCenter.shared.reloadTimelines(ofKind: "Claude_ProductivityWidget")

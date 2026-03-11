@@ -7,6 +7,16 @@ enum SessionState: Comparable, Codable {
     case idle
     case compacting
 
+    /// String key used in ProductivityStats.timeInState dictionaries.
+    var key: String {
+        switch self {
+        case .active: "active"
+        case .waiting: "waiting"
+        case .idle: "idle"
+        case .compacting: "compacting"
+        }
+    }
+
     var sfSymbol: String {
         switch self {
         case .active: "circle.fill"
