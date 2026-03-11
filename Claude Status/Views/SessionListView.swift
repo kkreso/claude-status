@@ -19,7 +19,7 @@ struct SessionListView: View {
             if $0.state.sortOrder != $1.state.sortOrder {
                 return $0.state.sortOrder < $1.state.sortOrder
             }
-            return $0.lastActivityAt < $1.lastActivityAt
+            return $0.lastActivityAt > $1.lastActivityAt
         }
     }
 

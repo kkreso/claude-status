@@ -83,7 +83,7 @@ struct MediumWidgetView: View {
             if $0.state.sortOrder != $1.state.sortOrder {
                 return $0.state.sortOrder < $1.state.sortOrder
             }
-            return $0.lastActivityAt < $1.lastActivityAt
+            return $0.lastActivityAt > $1.lastActivityAt
         }
     }
 
@@ -158,7 +158,7 @@ struct LargeWidgetView: View {
             if $0.state.sortOrder != $1.state.sortOrder {
                 return $0.state.sortOrder < $1.state.sortOrder
             }
-            return $0.lastActivityAt < $1.lastActivityAt
+            return $0.lastActivityAt > $1.lastActivityAt
         }
     }
 
