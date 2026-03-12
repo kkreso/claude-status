@@ -78,7 +78,7 @@ struct SessionStateTests {
             tmuxSocket: "/tmp/tmux-501/default",
             source: .terminal(app: "iTerm2"),
             activity: "thinking",
-            sessionName: nil
+            sessionName: "Debug Sprint"
         )
 
         let encoded = try JSONEncoder().encode(session)
@@ -94,7 +94,7 @@ struct SessionStateTests {
         #expect(decoded.tmuxSocket == "/tmp/tmux-501/default")
         #expect(decoded.source == session.source)
         #expect(decoded.activity == session.activity)
-        #expect(decoded.sessionName == nil)
+        #expect(decoded.sessionName == "Debug Sprint")
     }
 
     @Test @MainActor func sessionCodableWithName() throws {

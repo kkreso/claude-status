@@ -63,7 +63,7 @@ Three complementary mechanisms keep the UI current:
 
 The plugin includes a `/name-session` skill that lets you set a custom display name for the current Claude Code session. When set, the session name replaces the project directory name as the primary label in both the menu bar dropdown and the desktop widget, with the project name shown in the subtitle.
 
-```
+```text
 /name-session API Refactor
 ```
 
