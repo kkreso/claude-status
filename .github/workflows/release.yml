@@ -40,6 +40,22 @@ jobs:
             PROVISIONING_PROFILE_SPECIFIER="" \
             SPARKLE_ED_KEY="${{ secrets.SPARKLE_ED_PUBLIC_KEY }}"
 
+      - name: Notarize app
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.DEVELOPMENT_TEAM }}
+        run: |
+          APP_PATH="DerivedData/Build/Products/Release/Claude Status.app"
+          ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" notarize.zip
+          xcrun notarytool submit notarize.zip \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_ID_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait
+          xcrun stapler staple "$APP_PATH"
+          rm notarize.zip
+
       - name: Package app
         id: package
         run: |
@@ -92,8 +108,6 @@ jobs:
           mkdir -p releases
           mv "${{ needs.build.outputs.zip_name }}" releases/
 
-          # Write release notes from GitHub release body
-          RELEASE_NOTES="${{ github.event.release.body }}"
           TAG="${{ github.event.release.tag_name }}"
 
           echo "$SPARKLE_PRIVATE_KEY" | ./sparkle/bin/generate_appcast \

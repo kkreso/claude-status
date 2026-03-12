@@ -33,7 +33,10 @@ struct SettingsView: View {
 
             if let updater {
                 Section("Updates") {
-                    HStack {
+                    Toggle(isOn: Binding(
+                        get: { updater.automaticallyChecksForUpdates },
+                        set: { updater.automaticallyChecksForUpdates = $0 }
+                    )) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Automatic Updates")
                                 .font(.body)
@@ -41,13 +44,8 @@ struct SettingsView: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
-                        Spacer()
-                        Toggle("", isOn: Binding(
-                            get: { updater.automaticallyChecksForUpdates },
-                            set: { updater.automaticallyChecksForUpdates = $0 }
-                        ))
-                        .toggleStyle(.switch)
                     }
+                    .toggleStyle(.switch)
                     HStack {
                         Spacer()
                         Button("Check for Updates\u{2026}") {
