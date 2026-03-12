@@ -27,7 +27,8 @@ struct SessionStateTests {
             tmuxPaneId: nil,
             tmuxSocket: nil,
             source: .terminal(app: "Terminal"),
-            activity: "Read"
+            activity: "Read",
+            sessionName: nil
         )
         #expect(recent.timeSinceActivity == "just now")
 
@@ -42,7 +43,8 @@ struct SessionStateTests {
             tmuxPaneId: nil,
             tmuxSocket: nil,
             source: .terminal(app: "Terminal"),
-            activity: "Bash"
+            activity: "Bash",
+            sessionName: nil
         )
         #expect(fiveMinAgo.timeSinceActivity == "5m ago")
 
@@ -57,7 +59,8 @@ struct SessionStateTests {
             tmuxPaneId: nil,
             tmuxSocket: nil,
             source: .terminal(app: "Terminal"),
-            activity: ""
+            activity: "",
+            sessionName: nil
         )
         #expect(twoHoursAgo.timeSinceActivity == "2h ago")
     }
@@ -74,7 +77,8 @@ struct SessionStateTests {
             tmuxPaneId: "%5",
             tmuxSocket: "/tmp/tmux-501/default",
             source: .terminal(app: "iTerm2"),
-            activity: "thinking"
+            activity: "thinking",
+            sessionName: nil
         )
 
         let encoded = try JSONEncoder().encode(session)
