@@ -64,12 +64,39 @@ jobs:
           ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "$ZIP_NAME"
           echo "zip_name=$ZIP_NAME" >> "$GITHUB_OUTPUT"
 
-      - name: Upload release asset
+      - name: Build installer pkg
+        id: pkg
+        run: |
+          APP_PATH="DerivedData/Build/Products/Release/Claude Status.app"
+          PKG_NAME="Claude-Status-${{ github.event.release.tag_name }}.pkg"
+          pkgbuild \
+            --component "$APP_PATH" \
+            --install-location "/Applications" \
+            --identifier "com.poisonpenllc.Claude-Status" \
+            --version "${{ github.event.release.tag_name }}" \
+            "$PKG_NAME"
+          echo "pkg_name=$PKG_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Notarize pkg
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.DEVELOPMENT_TEAM }}
+        run: |
+          xcrun notarytool submit "${{ steps.pkg.outputs.pkg_name }}" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_ID_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait
+          xcrun stapler staple "${{ steps.pkg.outputs.pkg_name }}"
+
+      - name: Upload release assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release upload "${{ github.event.release.tag_name }}" \
-            "${{ steps.package.outputs.zip_name }}"
+            "${{ steps.package.outputs.zip_name }}" \
+            "${{ steps.pkg.outputs.pkg_name }}"
 
       - name: Upload zip artifact
         uses: actions/upload-artifact@v4
