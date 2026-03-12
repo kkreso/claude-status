@@ -2,6 +2,7 @@ import AppKit
 import SwiftUI
 
 /// App delegate managing the menu bar status item and popover.
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private var statusItem: NSStatusItem!
