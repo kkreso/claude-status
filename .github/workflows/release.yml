@@ -59,7 +59,8 @@ jobs:
             CODE_SIGN_STYLE=Manual \
             PROVISIONING_PROFILE_SPECIFIER="" \
             SPARKLE_ED_KEY="${{ secrets.SPARKLE_ED_PUBLIC_KEY }}" \
-            ROLLBAR_ACCESS_TOKEN="${{ secrets.ROLLBAR_ACCESS_TOKEN }}"
+            ROLLBAR_ACCESS_TOKEN="${{ secrets.ROLLBAR_ACCESS_TOKEN }}" \
+            MARKETING_VERSION="${{ github.event.release.tag_name }}"
 
       - name: Notarize app
         env:
