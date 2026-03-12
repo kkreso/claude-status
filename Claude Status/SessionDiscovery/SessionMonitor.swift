@@ -8,6 +8,7 @@ import WidgetKit
 /// 2. **File system watching** — `DispatchSource` on `~/.claude/projects/`
 /// 3. **Polling timer** — 5s fallback for sessions without hooks (IDE agents, etc.)
 @Observable
+@MainActor
 final class SessionMonitor {
 
     private(set) var sessions: [ClaudeSession] = []
@@ -27,7 +28,7 @@ final class SessionMonitor {
     private let stateResolver: StateResolver
     private let pluginDetector: PluginDetector
     private let tracker: ProductivityTracker
-    private var timer: Timer?
+    nonisolated(unsafe) private var timer: Timer?
     private let scanInterval: TimeInterval
 
     /// Maps session ID → .cstatus file URL for fast notification-driven refresh.
@@ -55,10 +56,10 @@ final class SessionMonitor {
 
     deinit {
         timer?.invalidate()
-        unregisterDarwinNotification()
+        let center = CFNotificationCenterGetDarwinNotifyCenter()
+        CFNotificationCenterRemoveEveryObserver(center, Unmanaged.passUnretained(self).toOpaque())
     }
 
-    @MainActor
     func start() {
         stateResolver.onProjectsChanged = { [weak self] in
             self?.refresh()
