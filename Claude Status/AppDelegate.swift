@@ -1,4 +1,5 @@
 import AppKit
+import Sparkle
 import SwiftUI
 
 /// App delegate managing the menu bar status item and popover.
@@ -12,6 +13,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let pluginInstaller = PluginInstaller()
     private var eventMonitor: Any?
     private var settingsWindow: NSWindow?
+
+    /// Sparkle updater controller for automatic updates.
+    /// Only initialized when a valid EdDSA public key is present in Info.plist.
+    private(set) var updaterController: SPUStandardUpdaterController?
+
+    /// Whether Sparkle is available (valid EdDSA key configured).
+    var isSparkleAvailable: Bool { updaterController != nil }
 
     /// Shared defaults for the app group (cached to avoid per-tick allocation).
     private let sharedDefaults = UserDefaults(suiteName: "group.com.poisonpenllc.Claude-Status")
@@ -30,6 +38,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         setupPopover()
         setupURLHandler()
         monitor.start()
+
+        // Initialize Sparkle only if a valid EdDSA public key is configured
+        if let edKey = Bundle.main.object(forInfoDictionaryKey: "SUPublicEDKey") as? String,
+           !edKey.isEmpty {
+            updaterController = SPUStandardUpdaterController(
+                startingUpdater: true,
+                updaterDelegate: nil,
+                userDriverDelegate: nil
+            )
+        }
 
         // Close popover when clicking outside
         eventMonitor = NSEvent.addGlobalMonitorForEvents(
@@ -431,6 +449,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let pluginState = PluginDetector().detect()
         let settingsView = SettingsView(
             pluginState: pluginState,
+            updater: updaterController?.updater,
             onInstallPlugin: { [weak self] in
                 self?.performPluginInstall()
                 // Reopen settings to reflect new state
