@@ -67,6 +67,27 @@ jobs:
           echo "app_name=$APP_PROFILE_NAME" >> "$GITHUB_OUTPUT"
           echo "widget_name=$WIDGET_PROFILE_NAME" >> "$GITHUB_OUTPUT"
 
+      - name: Set provisioning profiles in project
+        env:
+          APP_PROFILE_NAME: ${{ steps.profiles.outputs.app_name }}
+          WIDGET_PROFILE_NAME: ${{ steps.profiles.outputs.widget_name }}
+        run: |
+          ruby -e '
+            pbxproj = File.read("Claude Status.xcodeproj/project.pbxproj")
+            app_profile = ENV["APP_PROFILE_NAME"]
+            widget_profile = ENV["WIDGET_PROFILE_NAME"]
+            # Insert PROVISIONING_PROFILE_SPECIFIER after each PRODUCT_BUNDLE_IDENTIFIER line
+            pbxproj.gsub!(
+              /^(\s*PRODUCT_BUNDLE_IDENTIFIER = "com\.poisonpenllc\.Claude-Status";)$/,
+              "\\1\n\t\t\t\tPROVISIONING_PROFILE_SPECIFIER = \"#{app_profile}\";"
+            )
+            pbxproj.gsub!(
+              /^(\s*PRODUCT_BUNDLE_IDENTIFIER = "com\.poisonpenllc\.Claude-Status\.widget";)$/,
+              "\\1\n\t\t\t\tPROVISIONING_PROFILE_SPECIFIER = \"#{widget_profile}\";"
+            )
+            File.write("Claude Status.xcodeproj/project.pbxproj", pbxproj)
+          '
+
       - name: Build archive
         run: |
           xcodebuild clean archive \
