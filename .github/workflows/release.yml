@@ -87,7 +87,6 @@ jobs:
       - name: Create export options
         env:
           TEAM_ID: ${{ secrets.DEVELOPMENT_TEAM }}
-          SIGN_IDENTITY: ${{ secrets.CODE_SIGN_IDENTITY }}
           APP_PROFILE: ${{ steps.profiles.outputs.app_name }}
           WIDGET_PROFILE: ${{ steps.profiles.outputs.widget_name }}
         run: |
@@ -95,7 +94,7 @@ jobs:
           /usr/libexec/PlistBuddy -c "Add :method string developer-id" ExportOptions.plist
           /usr/libexec/PlistBuddy -c "Add :teamID string $TEAM_ID" ExportOptions.plist
           /usr/libexec/PlistBuddy -c "Add :signingStyle string manual" ExportOptions.plist
-          /usr/libexec/PlistBuddy -c "Add :signingCertificate string $SIGN_IDENTITY" ExportOptions.plist
+          /usr/libexec/PlistBuddy -c "Add :signingCertificate string Developer ID Application" ExportOptions.plist
           /usr/libexec/PlistBuddy -c "Add :provisioningProfiles dict" ExportOptions.plist
           /usr/libexec/PlistBuddy -c "Add :provisioningProfiles:com.poisonpenllc.Claude-Status string $APP_PROFILE" ExportOptions.plist
           /usr/libexec/PlistBuddy -c "Add :provisioningProfiles:com.poisonpenllc.Claude-Status.widget string $WIDGET_PROFILE" ExportOptions.plist
