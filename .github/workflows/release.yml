@@ -76,9 +76,10 @@ jobs:
             -archivePath DerivedData/Claude-Status.xcarchive \
             -destination "platform=macOS" \
             -skipPackageSignatureValidation \
-            CODE_SIGN_IDENTITY=- \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_IDENTITY="${{ secrets.CODE_SIGN_IDENTITY }}" \
+            DEVELOPMENT_TEAM="${{ secrets.DEVELOPMENT_TEAM }}" \
+            CODE_SIGN_STYLE=Manual \
+            ENABLE_HARDENED_RUNTIME=YES \
             SPARKLE_ED_KEY="${{ secrets.SPARKLE_ED_PUBLIC_KEY }}" \
             ROLLBAR_ACCESS_TOKEN="${{ secrets.ROLLBAR_ACCESS_TOKEN }}" \
             MARKETING_VERSION="${{ github.event.release.tag_name }}" \
@@ -114,11 +115,24 @@ jobs:
         run: |
           APP_PATH="DerivedData/Export/Claude Status.app"
           ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" notarize.zip
-          xcrun notarytool submit notarize.zip \
+          SUBMIT_OUT=$(xcrun notarytool submit notarize.zip \
             --apple-id "$APPLE_ID" \
             --password "$APPLE_ID_PASSWORD" \
             --team-id "$APPLE_TEAM_ID" \
-            --wait
+            --wait 2>&1) || true
+          echo "$SUBMIT_OUT"
+          SUBMISSION_ID=$(echo "$SUBMIT_OUT" | grep "id:" | head -1 | awk '{print $2}')
+          STATUS=$(echo "$SUBMIT_OUT" | grep "status:" | tail -1 | awk '{print $2}')
+          if [ "$STATUS" != "Accepted" ]; then
+            echo "::error::Notarization failed with status: $STATUS"
+            xcrun notarytool log "$SUBMISSION_ID" \
+              --apple-id "$APPLE_ID" \
+              --password "$APPLE_ID_PASSWORD" \
+              --team-id "$APPLE_TEAM_ID" \
+              developer_log.json 2>&1 || true
+            cat developer_log.json 2>/dev/null || true
+            exit 1
+          fi
           xcrun stapler staple "$APP_PATH"
           rm notarize.zip
 
