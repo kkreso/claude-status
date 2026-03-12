@@ -23,10 +23,10 @@ final class SessionMonitor {
         sessions.map(\.state).max(by: { $0.priority < $1.priority })
     }
 
-    private var discovery = SessionDiscovery()
-    private let stateResolver = StateResolver()
-    private let pluginDetector = PluginDetector()
-    private let tracker = ProductivityTracker()
+    private var discovery: SessionDiscovery
+    private let stateResolver: StateResolver
+    private let pluginDetector: PluginDetector
+    private let tracker: ProductivityTracker
     private var timer: Timer?
     private let scanInterval: TimeInterval
 
@@ -47,6 +47,10 @@ final class SessionMonitor {
 
     init(scanInterval: TimeInterval = 5.0) {
         self.scanInterval = scanInterval
+        self.discovery = SessionDiscovery()
+        self.stateResolver = StateResolver()
+        self.pluginDetector = PluginDetector()
+        self.tracker = ProductivityTracker()
     }
 
     deinit {
