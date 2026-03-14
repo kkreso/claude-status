@@ -309,15 +309,16 @@
 			files = (
 			);
 			inputPaths = (
-				"$(SRCROOT)/claude-plugin",
+				"$(SRCROOT)/claude-status-plugin/.claude-plugin",
+				"$(SRCROOT)/claude-status-plugin/plugins",
 			);
 			name = "Bundle Plugin Marketplace";
 			outputPaths = (
-				"$(BUILT_PRODUCTS_DIR)/$(CONTENTS_FOLDER_PATH)/Resources/claude-plugin",
+				"$(BUILT_PRODUCTS_DIR)/$(CONTENTS_FOLDER_PATH)/Resources/claude-status-plugin",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "rsync -a --delete \"${SRCROOT}/claude-plugin/\" \"${BUILT_PRODUCTS_DIR}/${CONTENTS_FOLDER_PATH}/Resources/claude-plugin/\"\nchmod +x \"${BUILT_PRODUCTS_DIR}/${CONTENTS_FOLDER_PATH}/Resources/claude-plugin/plugins/claude-status/scripts/session-status.sh\"\n\n# Stamp MARKETING_VERSION into the bundled plugin JSON files\nPLUGIN_DIR=\"${BUILT_PRODUCTS_DIR}/${CONTENTS_FOLDER_PATH}/Resources/claude-plugin\"\nVERSION=\"${MARKETING_VERSION}\"\n/usr/bin/sed -i '' \"s/\\\"version\\\": \\\"[^\\\"]*\\\"/\\\"version\\\": \\\"${VERSION}\\\"/g\" \"${PLUGIN_DIR}/plugins/claude-status/.claude-plugin/plugin.json\"\n/usr/bin/sed -i '' \"s/\\\"version\\\": \\\"[^\\\"]*\\\"/\\\"version\\\": \\\"${VERSION}\\\"/g\" \"${PLUGIN_DIR}/.claude-plugin/marketplace.json\"\n";
+			shellScript = "PLUGIN_DIR=\"${BUILT_PRODUCTS_DIR}/${CONTENTS_FOLDER_PATH}/Resources/claude-status-plugin\"\nmkdir -p \"${PLUGIN_DIR}\"\nrsync -a --delete \"${SRCROOT}/claude-status-plugin/.claude-plugin/\" \"${PLUGIN_DIR}/.claude-plugin/\"\nrsync -a --delete \"${SRCROOT}/claude-status-plugin/plugins/\" \"${PLUGIN_DIR}/plugins/\"\n\n# Stamp MARKETING_VERSION into the bundled plugin JSON files\nVERSION=\"${MARKETING_VERSION}\"\n/usr/bin/sed -i '' \"s/\\\"version\\\": \\\"[^\\\"]*\\\"/\\\"version\\\": \\\"${VERSION}\\\"/g\" \"${PLUGIN_DIR}/plugins/claude-status/.claude-plugin/plugin.json\"\n/usr/bin/sed -i '' \"s/\\\"version\\\": \\\"[^\\\"]*\\\"/\\\"version\\\": \\\"${VERSION}\\\"/g\" \"${PLUGIN_DIR}/.claude-plugin/marketplace.json\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -515,7 +516,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = 1.1.5;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.poisonpenllc.Claude-Status";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -564,7 +565,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = 1.1.5;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.poisonpenllc.Claude-Status";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -586,7 +587,7 @@
 				DEVELOPMENT_TEAM = 6ZWB9X826X;
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 26.2;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.1.5;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.poisonpenllc.Claude-StatusTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
@@ -607,7 +608,7 @@
 				DEVELOPMENT_TEAM = 6ZWB9X826X;
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 26.2;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.1.5;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.poisonpenllc.Claude-StatusTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
@@ -640,7 +641,7 @@
 					"@executable_path/../../../../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.2;
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = 1.1.5;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.poisonpenllc.Claude-Status.widget";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -675,7 +676,7 @@
 					"@executable_path/../../../../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.2;
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = 1.1.5;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.poisonpenllc.Claude-Status.widget";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
