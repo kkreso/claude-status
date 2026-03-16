@@ -3,12 +3,12 @@
     <channel>
         <title>Claude Status</title>
         <item>
-            <title>1.2.2</title>
-            <pubDate>Sun, 15 Mar 2026 22:59:51 +0000</pubDate>
-            <sparkle:version>12</sparkle:version>
-            <sparkle:shortVersionString>1.2.2</sparkle:shortVersionString>
+            <title>1.2.3</title>
+            <pubDate>Mon, 16 Mar 2026 01:04:34 +0000</pubDate>
+            <sparkle:version>13</sparkle:version>
+            <sparkle:shortVersionString>1.2.3</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-            <enclosure url="https://github.com/gmr/claude-status/releases/download/v1.2.2/Claude-Status-1.2.2.zip" length="4866962" type="application/octet-stream" sparkle:edSignature="Lg2cUAEqlgILXP31XceZKWzrlaR/drFmGzLy4vRcYdUmbT7NgSnhPDmWExNxhKA/LpKsmrtTlqMU4netqYi/CA=="/>
+            <enclosure url="https://github.com/gmr/claude-status/releases/download/v1.2.3/Claude-Status-1.2.3.zip" length="4866589" type="application/octet-stream" sparkle:edSignature="h3nlhDwdNsfi+j1K5U8oAZCjhEK/SWWmVRAO535SqmrIhMBmjZ35APDamUSXR3uaPrK1J06XqmqIvm5zd+bMAg=="/>
         </item>
     </channel>
 </rss>
