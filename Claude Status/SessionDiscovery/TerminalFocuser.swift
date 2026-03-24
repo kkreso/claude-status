@@ -227,6 +227,8 @@ struct SessionFocuser {
     /// refer to the same directory still match correctly.
     private func focusGhosttyTerminal(workingDirectory: String) {
         let escapedDir = appleScriptEscape(workingDirectory)
+        // Use AppleScript to select the correct tab, then SpaceSwitcher
+        // to bring the window to front (switches to its space if needed).
         let script = """
         tell application "Ghostty"
             set targetDir to "\(escapedDir)"
@@ -245,26 +247,35 @@ struct SessionFocuser {
                     end try
                     if normalTDir is normalTarget then
                         focus t
-                        set index of aWindow to 1
-                        activate
                         return
                     end if
                 end repeat
             end repeat
-            activate
         end tell
         """
         runAppleScript(script)
+        // Switch to the space containing the Ghostty window and focus it
+        if let (windowId, pid) = SpaceSwitcher.findWindowId(forBundleId: "com.mitchellh.ghostty") {
+            SpaceSwitcher.focusWindow(windowId: windowId, pid: pid)
+        } else {
+            activateTerminalApp(name: "Ghostty")
+        }
     }
 
     // MARK: - WezTerm
 
     /// Focuses a WezTerm pane by resolving the session's PID to a TTY,
     /// matching it against `wezterm cli list`, and activating the pane.
+    /// Uses SpaceSwitcher to switch to the correct space if needed.
     private func focusWezTermTerminal(pid: pid_t) {
+        // Activate the correct pane (selects right tab/window in WezTerm)
         if let pane = WezTermHelper.findPaneFresh(for: pid) {
             WezTermHelper.activatePane(paneId: pane.paneId)
         }
+        // Bring WezTerm to front. The SkyLight private API doesn't work for
+        // WezTerm's non-native windows, so we use NSRunningApplication.activate()
+        // which reliably brings WezTerm forward (though it may pick the wrong
+        // OS window when WezTerm has windows on multiple spaces).
         activateTerminalApp(name: "WezTerm")
     }
 

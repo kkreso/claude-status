@@ -19,6 +19,7 @@ enum WezTermHelper {
     /// A single entry from `wezterm cli list --format json`.
     struct PaneInfo {
         let paneId: Int
+        let windowId: Int
         let ttyName: String
         let tabTitle: String
     }
@@ -155,6 +156,7 @@ enum WezTermHelper {
 
         cachedPanes = entries.compactMap { entry in
             guard let paneId = entry["pane_id"] as? Int,
+                  let windowId = entry["window_id"] as? Int,
                   let ttyName = entry["tty_name"] as? String else {
                 return nil
             }
@@ -174,7 +176,7 @@ enum WezTermHelper {
             } else {
                 tabTitle = ""
             }
-            return PaneInfo(paneId: paneId, ttyName: ttyName, tabTitle: tabTitle)
+            return PaneInfo(paneId: paneId, windowId: windowId, ttyName: ttyName, tabTitle: tabTitle)
         }
         cacheTimestamp = now
         return cachedPanes
